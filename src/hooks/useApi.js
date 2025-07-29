@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useTelegram } from "./useTelegram";
 
-const API_BASE_URL = "https://yoursite.com/api";
+const API_BASE_URL = "https://mr-muhridd1n.uz/api/";
 
 export const useApi = () => {
   const { tg, getUserData } = useTelegram();
