@@ -1,13 +1,27 @@
 {
   "name": "savdogarbot",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
+  "description": "Trade Lock - Xavfsiz Savdo Platformasi",
+  "author": "Trade Lock Team",
+  "keywords": [
+    "telegram",
+    "mini-app",
+    "trading",
+    "secure",
+    "payment"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "lint:fix": "eslint . --fix",
+    "preview": "vite preview",
+    "clean": "rm -rf dist",
+    "type-check": "tsc --noEmit",
+    "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx,json,css,md}\"",
+    "analyze": "vite build && npx vite-bundle-analyzer dist"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.11",
@@ -29,6 +43,25 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.2.0",
-    "vite": "^7.0.0"
+    "prettier": "^3.0.0",
+    "typescript": "^5.0.0",
+    "vite": "^7.0.0",
+    "vite-bundle-analyzer": "^0.7.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
   }
 }

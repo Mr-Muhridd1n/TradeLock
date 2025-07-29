@@ -1,6 +1,5 @@
 // src/App.jsx (Updated)
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
-import { AppProvider } from "./context/AppContext";
 import { MainLayout } from "./layouts/MainLayout";
 import { Home } from "./pages/Home";
 import { Savdolar } from "./pages/Savdolar";
@@ -30,13 +29,11 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <AppProvider>
-        <div className="app">
-          <RouterProvider router={routes} />
-          <NotificationContainer />
-          <LoadingScreen />
-        </div>
-      </AppProvider>
+      <div className="app">
+        <RouterProvider router={routes} />
+        <NotificationContainer />
+        <LoadingScreen />
+      </div>
     </ErrorBoundary>
   );
 }

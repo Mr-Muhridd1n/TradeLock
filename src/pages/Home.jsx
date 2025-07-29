@@ -4,15 +4,7 @@ import { Link } from "react-router-dom";
 import { useAppContext } from "../context/AppContext";
 import { formatCurrency } from "../utils/formatters";
 import { hapticFeedback } from "../utils/telegram";
-import {
-  FaHome,
-  FaChartLine,
-  FaWallet,
-  FaUserLock,
-  FaWeixin,
-  FaRegListAlt,
-  FaWpforms,
-} from "react-icons/fa6";
+import { FaUserLock, FaWeixin, FaRegListAlt, FaWpforms } from "react-icons/fa";
 
 export const Home = () => {
   const { user, trades, isLoading } = useAppContext();
