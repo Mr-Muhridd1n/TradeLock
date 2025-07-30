@@ -57,12 +57,16 @@ export const NewSavdoForm = () => {
       // Oluvchi: savdo summasi + komissiya (agar o'zi to'lasa)
       if (savdoKomissiyasi === "men") {
         return parseInt(savdoSummasi) + commission;
+      } else if (savdoKomissiyasi === "ortada") {
+        return parseInt(savdoSummasi) + commission / 2;
       }
       return parseInt(savdoSummasi);
     } else {
       // Sotuvchi: faqat komissiya (agar o'zi to'lasa)
       if (savdoKomissiyasi === "men") {
-        return commission;
+        return parseInt(savdoSummasi) - commission;
+      } else if (savdoKomissiyasi === "ortada") {
+        return parseInt(savdoSummasi) - commission / 2;
       }
       return 0;
     }
@@ -447,15 +451,19 @@ export const NewSavdoForm = () => {
                 <div className="bg-gray-50 rounded-xl p-4 space-y-3">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Savdo ID:</span>
-                    <span className="font-semibold">#{Date.now()}</span>
+                    <span className="font-semibold text-black">
+                      #{Date.now()}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Mahsulot:</span>
-                    <span className="font-semibold">{savdoName}</span>
+                    <span className="font-semibold text-black">
+                      {savdoName}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Summa:</span>
-                    <span className="font-semibold">
+                    <span className="font-semibold text-black">
                       {FormatNumber(savdoSummasi)} UZS
                     </span>
                   </div>

@@ -142,36 +142,6 @@ export const SavdoShare = ({ setShowShare, data }) => {
                     {copiedUrl ? <CheckCircle size={16} /> : <Copy size={16} />}
                     {copiedUrl ? "Nusxalandi!" : "Nusxalash"}
                   </button>
-                  <button
-                    onClick={openWebApp}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                  >
-                    <ExternalLink size={16} />
-                    Ochish
-                  </button>
-                </div>
-              </div>
-
-              {/* Mahfiy kod */}
-              <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl p-6 border-l-4 border-blue-500 text-center">
-                <h3 className="font-semibold text-blue-800 mb-3">Savdo Kodi</h3>
-                <div className="bg-white rounded-lg p-4 mb-4">
-                  <div className="text-2xl font-mono font-bold text-gray-800 tracking-wider">
-                    {secretCode}
-                  </div>
-                </div>
-                <div className="flex items-center justify-center gap-2">
-                  <button
-                    onClick={copyCodeToClipboard}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-300 ${
-                      copied
-                        ? "bg-green-500 text-white"
-                        : "bg-blue-500 text-white hover:bg-blue-600"
-                    }`}
-                  >
-                    {copied ? <CheckCircle size={16} /> : <Copy size={16} />}
-                    {copied ? "Nusxalandi!" : "Nusxalash"}
-                  </button>
                 </div>
               </div>
 
@@ -184,17 +154,10 @@ export const SavdoShare = ({ setShowShare, data }) => {
                   />
                   <div>
                     <h3 className="font-semibold text-yellow-800 mb-2">
-                      2 xil usul:
+                      Qo'llanma:
                     </h3>
                     <ol className="text-sm text-yellow-700 space-y-1">
-                      <li>
-                        <strong>1-usul:</strong> Havolani yuborib bosishni
-                        ayting
-                      </li>
-                      <li>
-                        <strong>2-usul:</strong> Kodni nusxalab, @Trade_Lock_bot
-                        ga yuboring
-                      </li>
+                      <li>Havolani do'stingizga yuborib bosishni ayting</li>
                     </ol>
                   </div>
                 </div>

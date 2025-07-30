@@ -28,6 +28,7 @@ export const Hamyon = () => {
   const { result, dispatch } = useMainGlobalContext();
   const { getUserData } = useTelegram();
   const userData = getUserData();
+  // const userData = null;
   const hide = result.user.setting.balance_hide;
   const [operation, setOperation] = useState("min");
   const [activeTab, setActiveTab] = useState("operations");
