@@ -2,21 +2,54 @@ import { useState } from "react";
 import { Header } from "../components/Header";
 import { Operation } from "../components/Operation";
 import { FormatNumber } from "../components/FormatNumber";
+import { PaymentStatistics } from "../components/PaymentStatistics";
 import { Link, useParams } from "react-router-dom";
 import { useMainGlobalContext } from "../hooks/useMainGlobalContext";
 import { Toldirish } from "../components/Toldirish";
 import { Chiqarish } from "../components/Chiqarish";
-import { Eye, EyeOff } from "lucide-react";
+import { useTelegram } from "../hooks/useTelegram";
+import { showToast } from "../utils/toast"; // toast kutubxonasi qo'shilgandan keyin
+import {
+  Eye,
+  EyeOff,
+  Wallet,
+  Plus,
+  Minus,
+  Send,
+  BarChart3,
+  CreditCard,
+  TrendingUp,
+  ArrowUpRight,
+  ArrowDownRight,
+  User,
+} from "lucide-react";
 
 export const Hamyon = () => {
   const { result, dispatch } = useMainGlobalContext();
+  const { getUserData } = useTelegram();
+  const userData = getUserData();
   const hide = result.user.setting.balance_hide;
   const [operation, setOperation] = useState("min");
+  const [activeTab, setActiveTab] = useState("operations");
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
   const { status } = useParams();
 
-  if (status == "toldirish") {
+  // O'tkazma funksiyasi
+  const handleTransfer = () => {
+    setShowTransferModal(true);
+    // showToast.info("O'tkazma funksiyasi tez orada ishga tushadi!");
+  };
+
+  // Hisobot funksiyasi
+  const handleReport = () => {
+    setShowReportModal(true);
+    // showToast.info("Hisobot funksiyasi tez orada ishga tushadi!");
+  };
+
+  if (status === "toldirish") {
     return <Toldirish />;
-  } else if (status == "chiqarish") {
+  } else if (status === "chiqarish") {
     return <Chiqarish />;
   } else {
     return (
@@ -24,166 +57,166 @@ export const Hamyon = () => {
         <Header title={"hamyon"} />
         <main>
           <section className="align-elements">
+            {/* Balans kartasi */}
             <div className="py-4">
-              <div className="balance-card rounded-2xl p-6 text-white card-hover relative z-10">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-10 h-10 bg-black bg-opacity-20 rounded-full flex items-center justify-center">
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-                        ></path>
-                      </svg>
+              <div className="balance-card rounded-2xl p-6 text-white card-hover relative z-10 overflow-hidden">
+                {/* Background pattern */}
+                <div className="absolute inset-0 opacity-10">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-white rounded-full -translate-y-16 translate-x-16"></div>
+                  <div className="absolute bottom-0 left-0 w-24 h-24 bg-white rounded-full translate-y-12 -translate-x-12"></div>
+                </div>
+
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                        {userData?.id && result.user.userImage ? (
+                          <img
+                            src={result.user.userImage}
+                            alt="Profile"
+                            className="w-full h-full rounded-full object-cover"
+                          />
+                        ) : (
+                          <User className="w-6 h-6 text-white" />
+                        )}
+                      </div>
+                      <div>
+                        <span className="text-sm opacity-90 block">
+                          Asosiy hisob
+                        </span>
+                        <span className="text-xs opacity-75">
+                          TradeLock Wallet
+                        </span>
+                      </div>
                     </div>
-                    <span className="text-sm opacity-80">Asosiy hisob</span>
-                  </div>
-                  <button
-                    className="px-3 py-1.5 rounded-lg text-base cursor-pointer"
-                    onClick={() =>
-                      dispatch({
-                        type: "SETHIDE",
-                        payload: !hide,
-                      })
-                    }
-                  >
-                    {!hide ? (
-                      <EyeOff className="w-4 h-4" />
-                    ) : (
-                      <Eye className="w-4 h-4" />
-                    )}
-                  </button>
-                </div>
-                <div className="mb-6">
-                  <div className="text-3xl font-bold mb-1">
-                    {hide ? "••• •••" : FormatNumber(result.balance)}
-                  </div>
-                  <div className="text-sm opacity-80">UZS</div>
-                </div>
-                <div className="flex items-center space-x-4">
-                  <div className="text-sm">
-                    <div className="opacity-80">Oxirgi o'zgarish</div>
-                    <div
-                      className={
-                        (result &&
-                          result.data.savdolar.length >= 1 &&
-                          result.data.operation[0].status == "+savdo") ||
-                        result.data.operation[0].status == "hisobtoldirish" ||
-                        result.data.operation[0].status == "+otkazma"
-                          ? "font-semibold text-green-300"
-                          : "font-semibold text-red-400"
+                    <button
+                      className="p-3 bg-white bg-opacity-30 rounded-xl hover:bg-opacity-40 transition-all duration-300 cursor-pointer backdrop-blur-sm"
+                      onClick={() =>
+                        dispatch({
+                          type: "SETHIDE",
+                          payload: !hide,
+                        })
                       }
                     >
-                      {hide
-                        ? ""
-                        : (result &&
+                      {!hide ? (
+                        <EyeOff className="w-5 h-5 text-white" />
+                      ) : (
+                        <Eye className="w-5 h-5 text-white" />
+                      )}
+                    </button>
+                  </div>
+
+                  <div className="mb-6">
+                    <div className="text-4xl font-bold mb-2">
+                      {hide ? "••• ••• •••" : FormatNumber(result.balance)}
+                    </div>
+                    <div className="text-sm opacity-90">UZS</div>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-xs opacity-75 mb-1">
+                        Oxirgi o'zgarish
+                      </div>
+                      <div
+                        className={`text-sm font-semibold flex items-center space-x-1 ${
+                          (result &&
                             result.data.savdolar.length >= 1 &&
-                            result.data.operation[0].status == "+savdo") ||
-                          result.data.operation[0].status == "hisobtoldirish" ||
-                          result.data.operation[0].status == "+otkazma"
-                        ? "+"
-                        : "-"}
-                      {result && result.data.operation.length >= 1 && hide
-                        ? "••• •••"
-                        : FormatNumber(result.data.operation[0].value)}{" "}
-                      UZS
+                            result.data.operation[0].status === "+savdo") ||
+                          result.data.operation[0].status ===
+                            "hisobtoldirish" ||
+                          result.data.operation[0].status === "+otkazma"
+                            ? "text-green-300"
+                            : "text-red-300"
+                        }`}
+                      >
+                        {result && result.data.operation.length >= 1 && (
+                          <>
+                            {result.data.operation[0].status === "+savdo" ||
+                            result.data.operation[0].status ===
+                              "hisobtoldirish" ||
+                            result.data.operation[0].status === "+otkazma" ? (
+                              <ArrowUpRight className="w-4 h-4" />
+                            ) : (
+                              <ArrowDownRight className="w-4 h-4" />
+                            )}
+                            <span>
+                              {hide
+                                ? "••• •••"
+                                : (result.data.operation[0].status ===
+                                    "+savdo" ||
+                                  result.data.operation[0].status ===
+                                    "hisobtoldirish" ||
+                                  result.data.operation[0].status === "+otkazma"
+                                    ? "+"
+                                    : "-") +
+                                  FormatNumber(result.data.operation[0].value)}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs opacity-75 mb-1">
+                        Faol savdolar
+                      </div>
+                      <div className="text-sm font-semibold">
+                        {
+                          result.data.savdolar.filter((s) => s.holat === "faol")
+                            .length
+                        }
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* 4 ta menyu */}
+            {/* Tezkor harakatlar */}
             <div className="py-2">
               <div className="grid grid-cols-4 gap-3">
                 <Link
                   to="/hamyon/toldirish"
-                  className="bg-white rounded-xl p-4 shadow-sm card-hover text-center flex items-center flex-col cursor-pointer"
+                  className="bg-white rounded-xl p-4 shadow-sm card-hover text-center flex items-center flex-col cursor-pointer group"
                 >
-                  <div className="w-10 h-10 gradient-blue rounded-full flex items-center justify-center mx-auto mb-2">
-                    <svg
-                      className="w-5 h-5 text-white"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                      ></path>
-                    </svg>
+                  <div className="w-12 h-12 gradient-blue rounded-full flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform duration-300">
+                    <Plus className="w-6 h-6 text-white" />
                   </div>
                   <span className="text-xs font-medium text-gray-700">
                     To'ldirish
                   </span>
                 </Link>
+
                 <Link
                   to={"/hamyon/chiqarish"}
-                  className="bg-white rounded-xl p-4 shadow-sm card-hover text-center flex items-center flex-col cursor-pointer"
+                  className="bg-white rounded-xl p-4 shadow-sm card-hover text-center flex items-center flex-col cursor-pointer group"
                 >
-                  <div className="w-10 h-10 gradient-green rounded-full flex items-center justify-center mx-auto mb-2">
-                    <svg
-                      className="w-5 h-5 text-white"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
-                      ></path>
-                    </svg>
+                  <div className="w-12 h-12 gradient-green rounded-full flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform duration-300">
+                    <Minus className="w-6 h-6 text-white" />
                   </div>
                   <span className="text-xs font-medium text-gray-700">
                     Chiqarish
                   </span>
                 </Link>
-                <button className="bg-white rounded-xl p-4 shadow-sm card-hover text-center flex items-center flex-col cursor-pointer">
-                  <div className="w-10 h-10 gradient-purple rounded-full flex items-center justify-center mx-auto mb-2">
-                    <svg
-                      className="w-5 h-5 text-white"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
-                      ></path>
-                    </svg>
+
+                <button
+                  onClick={handleTransfer}
+                  className="bg-white rounded-xl p-4 shadow-sm card-hover text-center flex items-center flex-col cursor-pointer group"
+                >
+                  <div className="w-12 h-12 gradient-purple rounded-full flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform duration-300">
+                    <Send className="w-6 h-6 text-white" />
                   </div>
                   <span className="text-xs font-medium text-gray-700">
                     O'tkazma
                   </span>
                 </button>
-                <button className="bg-white rounded-xl p-4 shadow-sm card-hover text-center flex items-center flex-col cursor-pointer">
-                  <div className="w-10 h-10 gradient-orange rounded-full flex items-center justify-center mx-auto mb-2">
-                    <svg
-                      className="w-5 h-5 text-white"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                      ></path>
-                    </svg>
+
+                <button
+                  onClick={handleReport}
+                  className="bg-white rounded-xl p-4 shadow-sm card-hover text-center flex items-center flex-col cursor-pointer group"
+                >
+                  <div className="w-12 h-12 gradient-orange rounded-full flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform duration-300">
+                    <BarChart3 className="w-6 h-6 text-white" />
                   </div>
                   <span className="text-xs font-medium text-gray-700">
                     Hisobot
@@ -192,38 +225,132 @@ export const Hamyon = () => {
               </div>
             </div>
 
+            {/* Tab navigation */}
             <div className="py-4">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold text-gray-800">
-                  Oxirgi operatsiyalar
-                </h2>
+              <div className="flex bg-white rounded-2xl shadow-md p-1">
                 <button
-                  onClick={() => {
-                    setOperation(operation == "min" ? "all" : "min");
-                  }}
-                  className="text-blue-500 text-sm font-medium cursor-pointer"
+                  className={`flex-1 py-3 px-4 rounded-xl font-semibold text-sm transition-all duration-300 flex items-center justify-center gap-2 ${
+                    activeTab === "operations"
+                      ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg scale-105"
+                      : "text-gray-600 hover:bg-gray-50"
+                  }`}
+                  onClick={() => setActiveTab("operations")}
                 >
-                  {operation !== "min" ? "Yashirish" : "Barchasi"}
+                  <CreditCard className="w-4 h-4" />
+                  Operatsiyalar
+                </button>
+                <button
+                  className={`flex-1 py-3 px-4 rounded-xl font-semibold text-sm transition-all duration-300 flex items-center justify-center gap-2 ${
+                    activeTab === "statistics"
+                      ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg scale-105"
+                      : "text-gray-600 hover:bg-gray-50"
+                  }`}
+                  onClick={() => setActiveTab("statistics")}
+                >
+                  <TrendingUp className="w-4 h-4" />
+                  Statistika
                 </button>
               </div>
+            </div>
 
-              <ul className="flex flex-col gap-3 pb-20">
-                {operation == "min"
-                  ? result &&
-                    result.data.operation.slice(0, 3).map((data) => {
-                      return (
-                        <Operation key={data.id} data={data} hide={hide} />
-                      );
-                    })
-                  : result &&
-                    result.data.operation.map((data) => {
-                      return (
-                        <Operation key={data.id} data={data} hide={hide} />
-                      );
-                    })}
-              </ul>
+            {/* Tab content */}
+            <div className="pb-20">
+              {activeTab === "operations" && (
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-bold text-gray-800">
+                      Oxirgi operatsiyalar
+                    </h2>
+                    <button
+                      onClick={() => {
+                        setOperation(operation === "min" ? "all" : "min");
+                      }}
+                      className="text-blue-500 text-sm font-medium cursor-pointer hover:text-blue-600 transition-colors"
+                    >
+                      {operation !== "min" ? "Yashirish" : "Barchasi"}
+                    </button>
+                  </div>
+
+                  <ul className="flex flex-col gap-3">
+                    {operation === "min"
+                      ? result &&
+                        result.data.operation.slice(0, 5).map((data) => {
+                          return (
+                            <Operation key={data.id} data={data} hide={hide} />
+                          );
+                        })
+                      : result &&
+                        result.data.operation.map((data) => {
+                          return (
+                            <Operation key={data.id} data={data} hide={hide} />
+                          );
+                        })}
+                  </ul>
+                </div>
+              )}
+
+              {activeTab === "statistics" && (
+                <div>
+                  <div className="mb-4">
+                    <h2 className="text-lg font-bold text-gray-800 mb-2">
+                      Moliyaviy statistika
+                    </h2>
+                    <p className="text-sm text-gray-600">
+                      Sizning daromad va xarajatlaringiz haqida ma'lumot
+                    </p>
+                  </div>
+
+                  <PaymentStatistics
+                    operations={result.data.operation}
+                    hide={hide}
+                  />
+                </div>
+              )}
             </div>
           </section>
+
+          {/* O'tkazma Modal */}
+          {showTransferModal && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md mx-4 p-6">
+                <h3 className="text-xl font-bold text-gray-800 mb-4">
+                  O'tkazma
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  O'tkazma funksiyasi tez orada ishga tushadi. Siz
+                  do'stlaringizga pul o'tkazishingiz mumkin bo'ladi.
+                </p>
+                <button
+                  onClick={() => setShowTransferModal(false)}
+                  className="w-full py-3 bg-blue-500 text-white rounded-xl font-semibold hover:bg-blue-600 transition-colors"
+                >
+                  Tushundim
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Hisobot Modal */}
+          {showReportModal && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md mx-4 p-6">
+                <h3 className="text-xl font-bold text-gray-800 mb-4">
+                  Hisobot
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  Batafsil hisobot funksiyasi tez orada ishga tushadi. Siz
+                  to'liq moliyaviy hisobotingizni PDF shaklida yuklab olishingiz
+                  mumkin bo'ladi.
+                </p>
+                <button
+                  onClick={() => setShowReportModal(false)}
+                  className="w-full py-3 bg-blue-500 text-white rounded-xl font-semibold hover:bg-blue-600 transition-colors"
+                >
+                  Tushundim
+                </button>
+              </div>
+            </div>
+          )}
         </main>
       </>
     );

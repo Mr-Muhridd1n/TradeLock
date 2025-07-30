@@ -2,6 +2,14 @@ import { createContext, useEffect, useReducer } from "react";
 
 export const GlobalContext = createContext();
 
+// Mahfiy kod yaratish funksiyasi
+const generateSecretCode = () => {
+  const prefix = "TL";
+  const timestamp = Date.now().toString(36);
+  const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+  return `${prefix}${timestamp}${random}`;
+};
+
 const initalState = {
   result: {
     balance: 100000000,
@@ -115,6 +123,7 @@ const initalState = {
           komissiya: "men",
           komissiyaValue: "12000",
           active: true,
+          secretCode: "TL1M2N3K4L5P6Q", // Har bir savdo uchun unikal kod
         },
         {
           id: 2,
@@ -128,6 +137,7 @@ const initalState = {
           komissiyaValue: "12000",
           komissiya: "ortada",
           active: true,
+          secretCode: "TL2A3B4C5D6E7F",
         },
         {
           id: 3,
@@ -141,6 +151,7 @@ const initalState = {
           komissiyaValue: "12000",
           komissiya: "unda",
           active: false,
+          secretCode: "TL3X4Y5Z6W7V8U",
         },
       ],
     },
@@ -215,13 +226,19 @@ const reducer = (state, action) => {
         },
       };
     case "NEWSAVDO":
+      // Yangi savdo yaratilganda mahfiy kod ham qo'shiladi
+      const newSavdo = {
+        ...payload,
+        secretCode: generateSecretCode(), // Doimiy mahfiy kod
+      };
+
       return {
         ...state,
         result: {
           ...state.result,
           data: {
             ...state.result.data,
-            savdolar: [...state.result.data.savdolar, payload],
+            savdolar: [...state.result.data.savdolar, newSavdo],
           },
         },
       };
