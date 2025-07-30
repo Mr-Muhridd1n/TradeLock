@@ -39,13 +39,13 @@ export const Hamyon = () => {
   // O'tkazma funksiyasi
   const handleTransfer = () => {
     setShowTransferModal(true);
-    // showToast.info("O'tkazma funksiyasi tez orada ishga tushadi!");
+    showToast.info("O'tkazma funksiyasi tez orada ishga tushadi!");
   };
 
   // Hisobot funksiyasi
   const handleReport = () => {
     setShowReportModal(true);
-    // showToast.info("Hisobot funksiyasi tez orada ishga tushadi!");
+    showToast.info("Hisobot funksiyasi tez orada ishga tushadi!");
   };
 
   if (status === "toldirish") {

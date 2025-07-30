@@ -1,3 +1,4 @@
+import { showToast } from "../utils/toast";
 import { FormatNumber } from "./FormatNumber";
 import { TimeAgo } from "./TimeAgo";
 import {
@@ -20,8 +21,7 @@ export const SavdoDetails = ({ setView, data }) => {
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text).then(() => {
-      // Toast bildirishnoma qo'shish mumkin
-      alert("Nusxalandi!");
+      showToast.success("Nusxalandi");
     });
   };
 
