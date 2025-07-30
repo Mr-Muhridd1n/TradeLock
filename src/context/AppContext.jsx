@@ -1,9 +1,11 @@
+// src/context/AppContext.jsx - Yangilangan versiya
 import { createContext, useContext, useReducer, useEffect } from "react";
 import { useApi } from "../hooks/useApi";
 import { useUser } from "../hooks/useUser";
 import { useTrades } from "../hooks/useTrades";
 import { usePayments } from "../hooks/usePayments";
 import { initTelegramWebApp } from "../utils/telegram";
+import { OfflineStorage } from "../utils/offlineStorage";
 
 const AppContext = createContext();
 
@@ -13,6 +15,7 @@ const initialState = {
   notifications: [],
   theme: "light",
   language: "uz",
+  isOfflineMode: false,
 };
 
 const appReducer = (state, action) => {
@@ -39,6 +42,8 @@ const appReducer = (state, action) => {
       return { ...state, theme: action.payload };
     case "SET_LANGUAGE":
       return { ...state, language: action.payload };
+    case "SET_OFFLINE_MODE":
+      return { ...state, isOfflineMode: action.payload };
     default:
       return state;
   }
@@ -46,7 +51,7 @@ const appReducer = (state, action) => {
 
 export const AppProvider = ({ children }) => {
   const [state, dispatch] = useReducer(appReducer, initialState);
-  const { isAuthenticated, apiCall } = useApi();
+  const { isAuthenticated, apiCall, isOfflineMode } = useApi();
   const userHook = useUser();
   const tradesHook = useTrades();
   const paymentsHook = usePayments();
@@ -55,19 +60,46 @@ export const AppProvider = ({ children }) => {
     // Telegram WebApp ni ishga tushirish
     const tg = initTelegramWebApp();
 
+    // Offline mode ni set qilish
+    dispatch({ type: "SET_OFFLINE_MODE", payload: isOfflineMode });
+
     if (tg) {
       // Tema o'zgarishini kuzatish
-      tg.onEvent("themeChanged", () => {
-        dispatch({
-          type: "SET_THEME",
-          payload: tg.colorScheme === "dark" ? "dark" : "light",
+      try {
+        tg.onEvent("themeChanged", () => {
+          dispatch({
+            type: "SET_THEME",
+            payload: tg.colorScheme === "dark" ? "dark" : "light",
+          });
         });
-      });
 
-      // Viewport o'zgarishini kuzatish
-      tg.onEvent("viewportChanged", () => {
-        // Handle viewport changes if needed
-      });
+        // Viewport o'zgarishini kuzatish
+        tg.onEvent("viewportChanged", () => {
+          // Handle viewport changes if needed
+          console.log("Viewport changed:", tg.viewportHeight);
+        });
+      } catch (error) {
+        console.warn("Failed to set up Telegram event listeners:", error);
+      }
+    } else {
+      // Fallback uchun tema sistemani system preference dan olish
+      const prefersDark = window.matchMedia(
+        "(prefers-color-scheme: dark)"
+      ).matches;
+      dispatch({ type: "SET_THEME", payload: prefersDark ? "dark" : "light" });
+
+      // System theme changes ni kuzatish
+      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+      const handleThemeChange = (e) => {
+        dispatch({ type: "SET_THEME", payload: e.matches ? "dark" : "light" });
+      };
+
+      mediaQuery.addEventListener("change", handleThemeChange);
+
+      // Cleanup function
+      return () => {
+        mediaQuery.removeEventListener("change", handleThemeChange);
+      };
     }
 
     // Loading holatini yangilash
@@ -84,6 +116,7 @@ export const AppProvider = ({ children }) => {
     userHook.loading,
     tradesHook.loading,
     paymentsHook.loading,
+    isOfflineMode,
   ]);
 
   // Notification qo'shish funksiyasi
@@ -106,10 +139,12 @@ export const AppProvider = ({ children }) => {
   // Error handling
   const handleError = (error, showNotification = true) => {
     console.error("App Error:", error);
-    dispatch({ type: "SET_ERROR", payload: error.message });
+    const errorMessage = error.message || "Noma'lum xatolik yuz berdi";
+
+    dispatch({ type: "SET_ERROR", payload: errorMessage });
 
     if (showNotification) {
-      addNotification(error.message, "error");
+      addNotification(errorMessage, "error");
     }
   };
 
@@ -118,9 +153,31 @@ export const AppProvider = ({ children }) => {
     addNotification(message, "success");
   };
 
+  // Warning notification
+  const showWarning = (message) => {
+    addNotification(message, "warning");
+  };
+
+  // Info notification
+  const showInfo = (message) => {
+    addNotification(message, "info");
+  };
+
   // Loading state
   const setLoading = (loading) => {
     dispatch({ type: "SET_LOADING", payload: loading });
+  };
+
+  // Clear all notifications
+  const clearNotifications = () => {
+    state.notifications.forEach((notification) => {
+      dispatch({ type: "REMOVE_NOTIFICATION", payload: notification.id });
+    });
+  };
+
+  // Offline mode toggle
+  const toggleOfflineMode = () => {
+    dispatch({ type: "SET_OFFLINE_MODE", payload: !state.isOfflineMode });
   };
 
   const value = {
@@ -138,7 +195,11 @@ export const AppProvider = ({ children }) => {
     addNotification,
     handleError,
     showSuccess,
+    showWarning,
+    showInfo,
     setLoading,
+    clearNotifications,
+    toggleOfflineMode,
     apiCall,
   };
 
