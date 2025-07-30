@@ -125,14 +125,6 @@ export const Savdolar = () => {
 
   return (
     <>
-      {/* Header */}
-      <div className="bg-gradient-to-br from-[#4facfe] to-[#00f2fe] text-white">
-        <div className="flex flex-col text-center py-6">
-          <h1 className="text-2xl font-bold">Savdolar</h1>
-          <p className="opacity-90">Sizning savdolaringiz ma'lumoti</p>
-        </div>
-      </div>
-
       <main className="bg-[#f8f9fa] min-h-screen">
         <section className="max-w-7xl px-4 mx-auto">
           {/* Stats */}
@@ -175,8 +167,8 @@ export const Savdolar = () => {
                 {tab === "faol"
                   ? "Faol"
                   : tab === "tarix"
-                  ? "Tarix"
-                  : "Hammasi"}
+                    ? "Tarix"
+                    : "Hammasi"}
               </button>
             ))}
           </div>
@@ -444,13 +436,13 @@ const TradePreview = ({ formData, commissionAmount }) => {
       ? formData.commission_type === "creator"
         ? amount - commissionAmount
         : formData.commission_type === "split"
-        ? amount - commissionAmount / 2
-        : amount
+          ? amount - commissionAmount / 2
+          : amount
       : formData.commission_type === "creator"
-      ? amount + commissionAmount
-      : formData.commission_type === "split"
-      ? amount + commissionAmount / 2
-      : amount;
+        ? amount + commissionAmount
+        : formData.commission_type === "split"
+          ? amount + commissionAmount / 2
+          : amount;
 
   return (
     <div className="bg-white rounded-2xl shadow-lg p-6">
@@ -472,10 +464,10 @@ const TradePreview = ({ formData, commissionAmount }) => {
             {formData.commission_type === "creator"
               ? "Sizdan"
               : formData.commission_type === "split"
-              ? "Ortada"
-              : formData.trade_type === "sell"
-              ? "Oluvchi tomonidan"
-              : "Sotuvchi tomonidan"}
+                ? "Ortada"
+                : formData.trade_type === "sell"
+                  ? "Oluvchi tomonidan"
+                  : "Sotuvchi tomonidan"}
           </span>
         </div>
         <div className="flex justify-between">

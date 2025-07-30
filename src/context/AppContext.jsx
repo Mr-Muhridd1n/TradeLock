@@ -1,4 +1,3 @@
-// src/context/AppContext.jsx
 import { createContext, useContext, useReducer, useEffect } from "react";
 import { useApi } from "../hooks/useApi";
 import { useUser } from "../hooks/useUser";

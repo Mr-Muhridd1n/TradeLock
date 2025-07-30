@@ -52,14 +52,6 @@ export const Hamyon = () => {
 
   return (
     <>
-      {/* Header */}
-      <div className="bg-gradient-to-br from-[#4facfe] to-[#00f2fe] text-white">
-        <div className="flex flex-col text-center py-6">
-          <h1 className="text-2xl font-bold">Hamyon</h1>
-          <p className="opacity-90">Sizning balansingiz haqida ma'lumot</p>
-        </div>
-      </div>
-
       <main className="bg-[#f8f9fa] min-h-screen">
         <section className="max-w-7xl px-4 mx-auto">
           {/* Balance Card */}
