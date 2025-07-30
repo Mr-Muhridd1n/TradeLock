@@ -1,5 +1,5 @@
-// src/pages/Hamyon.jsx (Updated with API integration)
-import React, { useState } from "react";
+// src/pages/Hamyon.jsx - Yangilangan versiya
+import React, { useState, useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useAppContext } from "../context/AppContext";
 import { formatCurrency, getTimeAgo } from "../utils/formatters";
@@ -7,6 +7,13 @@ import { hapticFeedback } from "../utils/telegram";
 import { Toldirish } from "../components/Toldirish";
 import { Chiqarish } from "../components/Chiqarish";
 import { PaymentCard } from "../components/PaymentCard";
+import { SearchBar } from "../components/SearchBar";
+import { FilterModal } from "../components/FilterModal";
+import { EmptyState } from "../components/EmptyState";
+import {
+  BalanceCardSkeleton,
+  ListSkeleton,
+} from "../components/SkeletonLoaders";
 import {
   Eye,
   EyeOff,
@@ -14,12 +21,23 @@ import {
   TrendingUp,
   TrendingDown,
   CreditCard,
+  Filter,
+  BarChart3,
 } from "lucide-react";
 
 export const Hamyon = () => {
   const { action } = useParams();
   const { user, payments } = useAppContext();
+
   const [showAll, setShowAll] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [filters, setFilters] = useState({
+    status: "all",
+    dateRange: "all",
+    amountRange: { min: "", max: "" },
+    paymentType: "all",
+  });
 
   if (action === "toldirish") {
     return <Toldirish />;
@@ -30,16 +48,85 @@ export const Hamyon = () => {
   if (!user.user) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        <BalanceCardSkeleton />
       </div>
     );
   }
 
   const balance = user.user.balance;
   const hideBalance = user.user.settings?.balance_hide;
-  const recentPayments = showAll
-    ? payments.payments
-    : payments.payments.slice(0, 3);
+
+  // Filter and search logic for payments
+  const filteredPayments = useMemo(() => {
+    let result = payments.payments;
+
+    // Search filter
+    if (searchQuery) {
+      result = result.filter(
+        (payment) =>
+          payment.description
+            ?.toLowerCase()
+            .includes(searchQuery.toLowerCase()) ||
+          payment.reference
+            ?.toLowerCase()
+            .includes(searchQuery.toLowerCase()) ||
+          payment.card_number?.includes(searchQuery)
+      );
+    }
+
+    // Status filter
+    if (filters.status !== "all") {
+      result = result.filter((payment) => payment.status === filters.status);
+    }
+
+    // Payment type filter
+    if (filters.paymentType !== "all") {
+      result = result.filter((payment) => payment.type === filters.paymentType);
+    }
+
+    // Amount range filter
+    if (filters.amountRange.min) {
+      result = result.filter(
+        (payment) => payment.amount >= parseFloat(filters.amountRange.min)
+      );
+    }
+    if (filters.amountRange.max) {
+      result = result.filter(
+        (payment) => payment.amount <= parseFloat(filters.amountRange.max)
+      );
+    }
+
+    // Date range filter
+    if (filters.dateRange !== "all") {
+      const now = new Date();
+      const filterDate = new Date();
+
+      switch (filters.dateRange) {
+        case "today":
+          filterDate.setHours(0, 0, 0, 0);
+          break;
+        case "week":
+          filterDate.setDate(now.getDate() - 7);
+          break;
+        case "month":
+          filterDate.setMonth(now.getMonth() - 1);
+          break;
+        case "quarter":
+          filterDate.setMonth(now.getMonth() - 3);
+          break;
+        default:
+          break;
+      }
+
+      if (filters.dateRange !== "all") {
+        result = result.filter(
+          (payment) => new Date(payment.created_at) >= filterDate
+        );
+      }
+    }
+
+    return showAll ? result : result.slice(0, 5);
+  }, [payments.payments, showAll, searchQuery, filters]);
 
   const toggleBalanceVisibility = async () => {
     try {
@@ -49,6 +136,45 @@ export const Hamyon = () => {
       console.error("Failed to update settings:", error);
     }
   };
+
+  const handleApplyFilters = (newFilters) => {
+    setFilters(newFilters);
+  };
+
+  const handleClearSearch = () => {
+    setSearchQuery("");
+  };
+
+  const hasActiveFilters =
+    searchQuery ||
+    filters.status !== "all" ||
+    filters.paymentType !== "all" ||
+    filters.dateRange !== "all" ||
+    filters.amountRange.min ||
+    filters.amountRange.max;
+
+  // Calculate statistics
+  const stats = useMemo(() => {
+    const allPayments = payments.payments;
+    const thisMonth = allPayments.filter((p) => {
+      const paymentDate = new Date(p.created_at);
+      const now = new Date();
+      return (
+        paymentDate.getMonth() === now.getMonth() &&
+        paymentDate.getFullYear() === now.getFullYear()
+      );
+    });
+
+    const income = thisMonth
+      .filter((p) => ["deposit", "trade_earn", "bonus"].includes(p.type))
+      .reduce((sum, p) => sum + p.amount, 0);
+
+    const expense = thisMonth
+      .filter((p) => ["withdraw", "commission", "penalty"].includes(p.type))
+      .reduce((sum, p) => sum + p.amount, 0);
+
+    return { income, expense, transactions: thisMonth.length };
+  }, [payments.payments]);
 
   return (
     <>
@@ -83,32 +209,25 @@ export const Hamyon = () => {
                 <div className="text-sm opacity-80">UZS</div>
               </div>
 
-              {/* Last Transaction */}
-              {payments.payments.length > 0 && (
-                <div className="flex items-center space-x-4 text-sm">
-                  <div className="opacity-80">Oxirgi o'zgarish</div>
-                  <div className="flex items-center space-x-1">
-                    {payments.payments[0].type === "deposit" ||
-                    payments.payments[0].type === "trade_earn" ? (
-                      <TrendingUp className="w-4 h-4 text-green-300" />
-                    ) : (
-                      <TrendingDown className="w-4 h-4 text-red-300" />
-                    )}
-                    <span
-                      className={`font-semibold ${
-                        payments.payments[0].type === "deposit" ||
-                        payments.payments[0].type === "trade_earn"
-                          ? "text-green-300"
-                          : "text-red-300"
-                      }`}
-                    >
-                      {hideBalance
-                        ? "••• •••"
-                        : formatCurrency(payments.payments[0].amount)}
-                    </span>
+              {/* Monthly Stats */}
+              <div className="grid grid-cols-3 gap-4 text-sm">
+                <div className="text-center">
+                  <div className="text-green-300 font-semibold">
+                    {hideBalance ? "•••" : formatCurrency(stats.income)}
                   </div>
+                  <div className="opacity-80">Kirim</div>
                 </div>
-              )}
+                <div className="text-center">
+                  <div className="text-red-300 font-semibold">
+                    {hideBalance ? "•••" : formatCurrency(stats.expense)}
+                  </div>
+                  <div className="opacity-80">Chiqim</div>
+                </div>
+                <div className="text-center">
+                  <div className="font-semibold">{stats.transactions}</div>
+                  <div className="opacity-80">Operatsiya</div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -158,7 +277,7 @@ export const Hamyon = () => {
                 className="bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all text-center flex flex-col items-center transform active:scale-95"
               >
                 <div className="w-10 h-10 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full flex items-center justify-center mb-2">
-                  <Wallet className="w-5 h-5 text-white" />
+                  <BarChart3 className="w-5 h-5 text-white" />
                 </div>
                 <span className="text-xs font-medium text-gray-700">
                   Hisobot
@@ -167,12 +286,31 @@ export const Hamyon = () => {
             </div>
           </div>
 
-          {/* Transaction History */}
-          <div className="py-4 pb-24">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-gray-800">
-                Oxirgi operatsiyalar
-              </h2>
+          {/* Search and Filter */}
+          <div className="py-4 space-y-3">
+            <SearchBar
+              placeholder="To'lovlarni qidirish..."
+              onSearch={setSearchQuery}
+              onClear={handleClearSearch}
+            />
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => setShowFilterModal(true)}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-xl transition-all ${
+                  hasActiveFilters
+                    ? "bg-blue-500 text-white"
+                    : "bg-white text-gray-600 border border-gray-200"
+                }`}
+              >
+                <Filter className="w-4 h-4" />
+                <span className="text-sm font-medium">Filter</span>
+                {hasActiveFilters && (
+                  <span className="bg-white text-blue-500 text-xs px-2 py-1 rounded-full font-bold">
+                    •
+                  </span>
+                )}
+              </button>
+
               <button
                 onClick={() => {
                   setShowAll(!showAll);
@@ -180,47 +318,60 @@ export const Hamyon = () => {
                 }}
                 className="text-blue-500 text-sm font-medium hover:text-blue-600 transition-colors"
               >
-                {showAll ? "Yashirish" : "Barchasi"}
+                {showAll ? "Kamroq" : "Barchasi"}
               </button>
+            </div>
+          </div>
+
+          {/* Transaction History */}
+          <div className="pb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-gray-800">
+                Operatsiyalar tarixi
+              </h2>
+              {hasActiveFilters && (
+                <div className="text-sm text-gray-600">
+                  {filteredPayments.length} ta topildi
+                </div>
+              )}
             </div>
 
             {payments.loading ? (
-              <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    className="bg-white rounded-xl p-4 shadow-sm animate-pulse"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
-                      <div className="flex-1">
-                        <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                        <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                      </div>
-                      <div className="h-4 bg-gray-200 rounded w-20"></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : recentPayments.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="text-6xl mb-4">💳</div>
-                <h3 className="text-xl font-bold text-gray-800 mb-2">
-                  Operatsiyalar yo'q
-                </h3>
-                <p className="text-gray-600 mb-4">
-                  Hali birorta operatsiya bajarilmagan
-                </p>
-                <Link
-                  to="/hamyon/toldirish"
-                  className="inline-block bg-blue-500 text-white px-6 py-3 rounded-xl font-semibold hover:bg-blue-600 transition-colors"
-                >
-                  Hisobni to'ldirish
-                </Link>
-              </div>
+              <ListSkeleton items={5} type="payment" />
+            ) : filteredPayments.length === 0 ? (
+              <EmptyState
+                icon={hasActiveFilters ? "🔍" : "💳"}
+                title={
+                  hasActiveFilters
+                    ? "Hech narsa topilmadi"
+                    : "Operatsiyalar yo'q"
+                }
+                description={
+                  hasActiveFilters
+                    ? "Qidiruv yoki filter shartlariga mos operatsiya topilmadi"
+                    : "Hali birorta operatsiya bajarilmagan"
+                }
+                actionText={
+                  hasActiveFilters ? "Filterni tozalash" : "Hisobni to'ldirish"
+                }
+                actionLink={hasActiveFilters ? undefined : "/hamyon/toldirish"}
+                onAction={
+                  hasActiveFilters
+                    ? () => {
+                        setFilters({
+                          status: "all",
+                          dateRange: "all",
+                          amountRange: { min: "", max: "" },
+                          paymentType: "all",
+                        });
+                        setSearchQuery("");
+                      }
+                    : undefined
+                }
+              />
             ) : (
               <div className="space-y-3">
-                {recentPayments.map((payment) => (
+                {filteredPayments.map((payment) => (
                   <PaymentCard
                     key={payment.id}
                     payment={payment}
@@ -232,6 +383,15 @@ export const Hamyon = () => {
           </div>
         </section>
       </main>
+
+      {/* Filter Modal */}
+      <FilterModal
+        isOpen={showFilterModal}
+        onClose={() => setShowFilterModal(false)}
+        onApply={handleApplyFilters}
+        filterType="payments"
+        initialFilters={filters}
+      />
     </>
   );
 };

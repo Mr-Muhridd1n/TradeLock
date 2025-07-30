@@ -1,4 +1,4 @@
-// src/App.jsx (Updated)
+// src/App.jsx - Yangilangan versiya
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { MainLayout } from "./layouts/MainLayout";
 import { Home } from "./pages/Home";
@@ -15,21 +15,43 @@ function App() {
     {
       path: "/",
       element: <MainLayout />,
+      errorElement: <ErrorBoundary />,
       children: [
-        { index: true, element: <Home /> },
-        { path: "/savdolar", element: <Savdolar /> },
-        { path: "/savdolar/:action", element: <Savdolar /> },
-        { path: "/hamyon", element: <Hamyon /> },
-        { path: "/hamyon/:action", element: <Hamyon /> },
-        { path: "/sozlamalar", element: <Sozlamalar /> },
-        { path: "/trade/:secretLink", element: <JoinTrade /> },
+        {
+          index: true,
+          element: <Home />,
+        },
+        {
+          path: "savdolar",
+          element: <Savdolar />,
+        },
+        {
+          path: "savdolar/:action",
+          element: <Savdolar />,
+        },
+        {
+          path: "hamyon",
+          element: <Hamyon />,
+        },
+        {
+          path: "hamyon/:action",
+          element: <Hamyon />,
+        },
+        {
+          path: "sozlamalar",
+          element: <Sozlamalar />,
+        },
+        {
+          path: "trade/:secretLink",
+          element: <JoinTrade />,
+        },
       ],
     },
   ]);
 
   return (
     <ErrorBoundary>
-      <div className="app">
+      <div className="app min-h-screen bg-gray-50">
         <RouterProvider router={routes} />
         <NotificationContainer />
         <LoadingScreen />
