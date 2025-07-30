@@ -1,4 +1,4 @@
-// src/hooks/useTrades.js - Yangilangan versiya
+// src/hooks/useTrades.js - To'g'irlangan versiya
 import { useState, useEffect } from "react";
 import { useApi } from "./useApi";
 import { OfflineStorage, defaultTrades } from "../utils/offlineStorage";
@@ -27,7 +27,9 @@ export const useTrades = (status = "all") => {
         console.log("📱 Loading trades from offline storage");
       } else {
         // Online rejimda API dan olish
-        tradesData = await apiCall(`trade?status=${status}`);
+        const response = await apiCall(`trade?status=${status}`);
+        tradesData = response.data || response;
+
         // Ma'lumotlarni localStorage ga saqlash
         if (status === "all") {
           OfflineStorage.save(OfflineStorage.KEYS.TRADES, tradesData);
@@ -111,10 +113,11 @@ export const useTrades = (status = "all") => {
         console.log("📱 Created trade offline");
       } else {
         // Online rejimda API ga yuborish
-        newTrade = await apiCall("trade", {
+        const response = await apiCall("trade", {
           method: "POST",
           body: JSON.stringify(tradeData),
         });
+        newTrade = response.data || response;
 
         // localStorage ni yangilash
         const currentTrades = OfflineStorage.load(
@@ -154,6 +157,9 @@ export const useTrades = (status = "all") => {
         if (trade.participant_id) {
           throw new Error("Bu savdoda allaqachon ishtirokchi bor");
         }
+        if (trade.creator_id === currentUser.id) {
+          throw new Error("O'z savdongizga qo'shila olmaysiz");
+        }
 
         const updatedTrade = {
           ...trade,
@@ -173,10 +179,11 @@ export const useTrades = (status = "all") => {
         console.log("📱 Joined trade offline");
       } else {
         // Online rejimda API ga yuborish
-        result = await apiCall("trade", {
+        const response = await apiCall("trade", {
           method: "POST",
           body: JSON.stringify({ join_link: secretLink }),
         });
+        result = response.data || response;
 
         // localStorage ni yangilash
         const currentTrades = OfflineStorage.load(
@@ -219,8 +226,10 @@ export const useTrades = (status = "all") => {
         // Confirmation statusini yangilash
         if (trade.creator_id === currentUser.id) {
           trade.creator_confirmed = true;
-        } else {
+        } else if (trade.participant_id === currentUser.id) {
           trade.participant_confirmed = true;
+        } else {
+          throw new Error("Sizda bu savdoni tasdiqlash huquqi yo'q");
         }
 
         // Agar ikki tomon ham tasdiqlasa, completed qilish
@@ -240,10 +249,11 @@ export const useTrades = (status = "all") => {
         console.log("📱 Confirmed trade offline");
       } else {
         // Online rejimda API ga yuborish
-        result = await apiCall(`trade/${tradeId}`, {
+        const response = await apiCall(`trade/${tradeId}`, {
           method: "PUT",
           body: JSON.stringify({ action: "confirm" }),
         });
+        result = response.data || response;
 
         // localStorage ni yangilash
         const currentTrades = OfflineStorage.load(
@@ -265,7 +275,7 @@ export const useTrades = (status = "all") => {
     }
   };
 
-  const cancelTrade = async (tradeId) => {
+  const cancelTrade = async (tradeId, reason = "Sabab ko'rsatilmagan") => {
     try {
       setError(null);
 
@@ -276,14 +286,24 @@ export const useTrades = (status = "all") => {
           OfflineStorage.KEYS.TRADES,
           defaultTrades
         );
+        const currentUser = OfflineStorage.load(OfflineStorage.KEYS.USER);
 
         const trade = currentTrades.find((t) => t.id === tradeId);
         if (!trade) {
           throw new Error("Savdo topilmadi");
         }
 
+        // Faqat yaratuvchi yoki ishtirokchi bekor qila oladi
+        if (
+          trade.creator_id !== currentUser.id &&
+          trade.participant_id !== currentUser.id
+        ) {
+          throw new Error("Sizda bu savdoni bekor qilish huquqi yo'q");
+        }
+
         trade.status = "cancelled";
         trade.cancelled_at = new Date().toISOString();
+        trade.cancel_reason = reason;
         trade.updated_at = new Date().toISOString();
         trade.pending_sync = true;
 
@@ -295,10 +315,11 @@ export const useTrades = (status = "all") => {
         console.log("📱 Cancelled trade offline");
       } else {
         // Online rejimda API ga yuborish
-        result = await apiCall(`trade/${tradeId}`, {
+        const response = await apiCall(`trade/${tradeId}`, {
           method: "PUT",
-          body: JSON.stringify({ action: "cancel" }),
+          body: JSON.stringify({ action: "cancel", reason }),
         });
+        result = response.data || response;
 
         // localStorage ni yangilash
         const currentTrades = OfflineStorage.load(
@@ -339,13 +360,29 @@ export const useTrades = (status = "all") => {
         return trade;
       } else {
         // Online rejimda API dan olish
-        return await apiCall(`trade/${tradeId}`);
+        const response = await apiCall(`trade/${tradeId}`);
+        return response.data || response;
       }
     } catch (err) {
       console.error("Failed to get trade by ID:", err);
       setError(err.message);
       throw err;
     }
+  };
+
+  // Pending sync items ni olish
+  const getPendingSyncTrades = () => {
+    const allTrades = OfflineStorage.load(OfflineStorage.KEYS.TRADES, []);
+    return allTrades.filter((trade) => trade.pending_sync);
+  };
+
+  // Sync qilishdan keyin pending flagini olib tashlash
+  const markAsSynced = (tradeId) => {
+    const currentTrades = OfflineStorage.load(OfflineStorage.KEYS.TRADES, []);
+    const updatedTrades = currentTrades.map((trade) =>
+      trade.id === tradeId ? { ...trade, pending_sync: false } : trade
+    );
+    OfflineStorage.save(OfflineStorage.KEYS.TRADES, updatedTrades);
   };
 
   useEffect(() => {
@@ -362,6 +399,8 @@ export const useTrades = (status = "all") => {
     cancelTrade,
     getTradeById,
     refetch: fetchTrades,
+    getPendingSyncTrades,
+    markAsSynced,
   };
 };
 

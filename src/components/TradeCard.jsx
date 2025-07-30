@@ -1,4 +1,4 @@
-// src/components/TradeCard.jsx
+// src/components/TradeCard.jsx - To'g'irlangan versiya
 import React, { useState } from "react";
 import { useAppContext } from "../context/AppContext";
 import {
@@ -17,11 +17,14 @@ import {
   AlertTriangle,
   MessageCircle,
   ExternalLink,
+  Copy,
+  Eye,
 } from "lucide-react";
 
 export const TradeCard = ({ trade }) => {
   const { user, trades, showSuccess, handleError } = useAppContext();
   const [isLoading, setIsLoading] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
 
   const isCreator = trade.creator_id === user.user?.id;
   const isParticipant = trade.participant_id === user.user?.id;
@@ -85,6 +88,28 @@ export const TradeCard = ({ trade }) => {
     }
   };
 
+  const handleCopyLink = () => {
+    if (trade.share_url) {
+      navigator.clipboard
+        .writeText(trade.share_url)
+        .then(() => {
+          showSuccess("Havola nusxa olindi!");
+          hapticFeedback("light");
+        })
+        .catch(() => {
+          // Fallback
+          const textArea = document.createElement("textarea");
+          textArea.value = trade.share_url;
+          document.body.appendChild(textArea);
+          textArea.select();
+          document.execCommand("copy");
+          document.body.removeChild(textArea);
+          showSuccess("Havola nusxa olindi!");
+          hapticFeedback("light");
+        });
+    }
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case "active":
@@ -115,10 +140,28 @@ export const TradeCard = ({ trade }) => {
     }
   };
 
+  const getProgressColor = () => {
+    switch (trade.status) {
+      case "completed":
+        return "bg-gradient-to-r from-green-500 to-green-600";
+      case "cancelled":
+        return "bg-gradient-to-r from-red-500 to-red-600";
+      default:
+        return "bg-gradient-to-r from-blue-500 to-blue-600";
+    }
+  };
+
   const otherUser = isCreator ? trade.participant_name : trade.creator_name;
   const otherUsername = isCreator
     ? trade.participant_username
     : trade.creator_username;
+
+  const requiredAmount = isCreator
+    ? trade.commission_type === "creator"
+      ? trade.commission_amount
+      : 0
+    : trade.amount +
+      (trade.commission_type === "participant" ? trade.commission_amount : 0);
 
   return (
     <div className="bg-white rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100">
@@ -135,25 +178,39 @@ export const TradeCard = ({ trade }) => {
           </div>
         </div>
 
-        {trade.status === "active" && isCreator && (
+        <div className="flex items-center space-x-2">
+          {/* Details toggle button */}
           <button
-            onClick={handleShare}
-            className="p-2 text-blue-500 hover:bg-blue-50 rounded-full transition-colors"
+            onClick={() => {
+              setShowDetails(!showDetails);
+              hapticFeedback("light");
+            }}
+            className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors"
           >
-            <Share2 className="w-4 h-4" />
+            <Eye className="w-4 h-4" />
           </button>
-        )}
+
+          {/* Share button for active trades created by user */}
+          {trade.status === "active" && isCreator && trade.share_url && (
+            <button
+              onClick={handleShare}
+              className="p-2 text-blue-500 hover:bg-blue-50 rounded-full transition-colors"
+            >
+              <Share2 className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Trade Info */}
       <div className="space-y-3 mb-4">
         <div>
-          <h3 className="text-lg font-bold text-gray-900 mb-1">
+          <h3 className="text-lg font-bold text-gray-900 mb-1 line-clamp-2">
             {trade.trade_name}
           </h3>
           <div className="flex items-center text-sm text-gray-600">
-            <User className="w-4 h-4 mr-1" />
-            <span>
+            <User className="w-4 h-4 mr-1 flex-shrink-0" />
+            <span className="truncate">
               {isCreator
                 ? otherUser
                   ? `Ishtirokchi: ${otherUser}`
@@ -177,18 +234,81 @@ export const TradeCard = ({ trade }) => {
           </div>
         </div>
 
-        <div className="flex items-center text-xs text-gray-500">
-          <Clock className="w-4 h-4 mr-1" />
-          {getTimeAgo(trade.created_at)}
+        <div className="flex items-center justify-between text-xs text-gray-500">
+          <div className="flex items-center">
+            <Clock className="w-4 h-4 mr-1" />
+            {getTimeAgo(trade.created_at)}
+          </div>
+          <div className="text-right">
+            <span className="capitalize">
+              {trade.trade_type === "sell" ? "Sotish" : "Sotib olish"}
+            </span>
+          </div>
         </div>
       </div>
+
+      {/* Detailed Info - Collapsible */}
+      {showDetails && (
+        <div className="mb-4 p-4 bg-gray-50 rounded-xl space-y-3 border-l-4 border-blue-500">
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <span className="text-gray-600">Komissiya turi:</span>
+              <div className="font-semibold">
+                {trade.commission_type === "creator" && "Yaratuvchi to'laydi"}
+                {trade.commission_type === "participant" &&
+                  "Ishtirokchi to'laydi"}
+                {trade.commission_type === "split" && "Teng taqsimlash"}
+              </div>
+            </div>
+            <div>
+              <span className="text-gray-600">Kerakli summa:</span>
+              <div className="font-semibold text-green-600">
+                {formatCurrency(requiredAmount)}
+              </div>
+            </div>
+          </div>
+
+          {trade.share_url && isCreator && (
+            <div>
+              <span className="text-gray-600 text-sm block mb-2">
+                Ulashish havolasi:
+              </span>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="text"
+                  value={trade.share_url}
+                  readOnly
+                  className="flex-1 p-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700"
+                />
+                <button
+                  onClick={handleCopyLink}
+                  className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                >
+                  <Copy className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Progress Bar */}
       <div className="mb-4">
         <div className="w-full bg-gray-200 rounded-full h-2">
           <div
-            className={`bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-500 ${getProgressWidth()}`}
+            className={`${getProgressColor()} h-2 rounded-full transition-all duration-500 ${getProgressWidth()}`}
           ></div>
+        </div>
+        <div className="flex justify-between text-xs text-gray-500 mt-1">
+          <span>Yaratildi</span>
+          {trade.status === "in_progress" && <span>Jarayonda</span>}
+          <span>
+            {trade.status === "completed"
+              ? "Yakunlandi"
+              : trade.status === "cancelled"
+                ? "Bekor qilindi"
+                : "Tugash"}
+          </span>
         </div>
       </div>
 
@@ -198,7 +318,7 @@ export const TradeCard = ({ trade }) => {
           <div className="text-sm font-semibold text-gray-700 mb-2">
             Tasdiqlash holati:
           </div>
-          <div className="flex justify-between text-sm">
+          <div className="grid grid-cols-2 gap-2 text-sm">
             <div className="flex items-center">
               {trade.creator_confirmed ? (
                 <CheckCircle className="w-4 h-4 text-green-500 mr-1" />
@@ -207,7 +327,15 @@ export const TradeCard = ({ trade }) => {
               )}
               <span>
                 Yaratuvchi:{" "}
-                {trade.creator_confirmed ? "Tasdiqlangan" : "Kutilmoqda"}
+                <span
+                  className={
+                    trade.creator_confirmed
+                      ? "text-green-600"
+                      : "text-yellow-600"
+                  }
+                >
+                  {trade.creator_confirmed ? "✓" : "⏳"}
+                </span>
               </span>
             </div>
             <div className="flex items-center">
@@ -218,7 +346,15 @@ export const TradeCard = ({ trade }) => {
               )}
               <span>
                 Ishtirokchi:{" "}
-                {trade.participant_confirmed ? "Tasdiqlangan" : "Kutilmoqda"}
+                <span
+                  className={
+                    trade.participant_confirmed
+                      ? "text-green-600"
+                      : "text-yellow-600"
+                  }
+                >
+                  {trade.participant_confirmed ? "✓" : "⏳"}
+                </span>
               </span>
             </div>
           </div>
@@ -257,33 +393,86 @@ export const TradeCard = ({ trade }) => {
 
         {/* Contact button for active trades with participant */}
         {otherUsername && ["active", "in_progress"].includes(trade.status) && (
-          <a
-            href={
-              otherUsername.startsWith("@")
+          <button
+            onClick={() => {
+              const telegramUrl = otherUsername.startsWith("@")
                 ? `https://t.me/${otherUsername.slice(1)}`
-                : `tg://user?id=${otherUsername}`
-            }
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => hapticFeedback("light")}
+                : `https://t.me/${otherUsername}`;
+              window.open(telegramUrl, "_blank");
+              hapticFeedback("light");
+            }}
             className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 px-4 rounded-xl font-semibold hover:from-blue-600 hover:to-blue-700 transition-all transform active:scale-95"
           >
             <MessageCircle className="w-4 h-4" />
-            Aloqa
-          </a>
+            <span className="hidden sm:inline">Aloqa</span>
+          </button>
         )}
 
         {/* Details button for completed/cancelled trades */}
         {["completed", "cancelled"].includes(trade.status) && (
           <button
-            onClick={() => hapticFeedback("light")}
+            onClick={() => {
+              setShowDetails(!showDetails);
+              hapticFeedback("light");
+            }}
             className="flex items-center justify-center gap-2 bg-gray-500 text-white py-3 px-4 rounded-xl font-semibold hover:bg-gray-600 transition-all transform active:scale-95"
           >
             <ExternalLink className="w-4 h-4" />
-            Tafsilotlar
+            <span className="hidden sm:inline">Tafsilotlar</span>
+          </button>
+        )}
+
+        {/* Share button for active trades without participant */}
+        {trade.status === "active" && isCreator && !trade.participant_id && (
+          <button
+            onClick={handleShare}
+            className="flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white py-3 px-4 rounded-xl font-semibold hover:from-purple-600 hover:to-purple-700 transition-all transform active:scale-95"
+          >
+            <Share2 className="w-4 h-4" />
+            <span className="hidden sm:inline">Ulashish</span>
           </button>
         )}
       </div>
+
+      {/* Additional Info for Completed/Cancelled */}
+      {(trade.status === "completed" || trade.status === "cancelled") &&
+        showDetails && (
+          <div className="mt-4 p-3 bg-gray-50 rounded-lg border-l-4 border-gray-400">
+            <div className="text-sm text-gray-600">
+              {trade.status === "completed" && (
+                <>
+                  <div className="flex items-center mb-1">
+                    <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                    <span>Muvaffaqiyatli yakunlandi</span>
+                  </div>
+                  {trade.completed_at && (
+                    <div className="text-xs text-gray-500">
+                      Yakunlanish vaqti: {getTimeAgo(trade.completed_at)}
+                    </div>
+                  )}
+                </>
+              )}
+              {trade.status === "cancelled" && (
+                <>
+                  <div className="flex items-center mb-1">
+                    <XCircle className="w-4 h-4 text-red-500 mr-2" />
+                    <span>Bekor qilindi</span>
+                  </div>
+                  {trade.cancelled_at && (
+                    <div className="text-xs text-gray-500">
+                      Bekor qilish vaqti: {getTimeAgo(trade.cancelled_at)}
+                    </div>
+                  )}
+                  {trade.cancel_reason && (
+                    <div className="text-xs text-gray-500 mt-1">
+                      Sabab: {trade.cancel_reason}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
     </div>
   );
 };

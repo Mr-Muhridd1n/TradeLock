@@ -1,4 +1,4 @@
-// src/hooks/useApi.js - Yangilangan versiya
+// src/hooks/useApi.js - To'g'irlangan versiya
 import { useState, useEffect } from "react";
 import { useTelegram } from "./useTelegram";
 import {
@@ -21,8 +21,15 @@ export const useApi = () => {
 
   useEffect(() => {
     // Online/offline holatini kuzatish
-    const handleOnline = () => setIsOfflineMode(false);
-    const handleOffline = () => setIsOfflineMode(true);
+    const handleOnline = () => {
+      setIsOfflineMode(false);
+      console.log("🌐 Network online");
+    };
+
+    const handleOffline = () => {
+      setIsOfflineMode(true);
+      console.log("📴 Network offline");
+    };
 
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
@@ -36,7 +43,8 @@ export const useApi = () => {
   useEffect(() => {
     const authenticateUser = async () => {
       // Agar token mavjud bo'lsa, darhol authenticated qilib qo'yamiz
-      if (token) {
+      if (token && token !== "offline_mock_token") {
+        console.log("✅ Using existing token");
         setIsAuthenticated(true);
         return;
       }
@@ -66,27 +74,30 @@ export const useApi = () => {
           },
           body: JSON.stringify({
             initData: tg.initData,
+            userData: getUserData(),
           }),
           signal: controller.signal,
         });
 
         clearTimeout(timeoutId);
 
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
         const result = await response.json();
         console.log("API response:", result);
 
-        if (result.success && result.data) {
-          const { token: newToken, user, success } = result.data;
+        if (result.success && result.data && result.data.token) {
+          const { token: newToken, user } = result.data;
 
-          if (success && newToken) {
-            console.log("✅ Online authentication successful");
-            setToken(newToken);
-            OfflineStorage.save(OfflineStorage.KEYS.AUTH_TOKEN, newToken);
+          console.log("✅ Online authentication successful");
+          setToken(newToken);
+          OfflineStorage.save(OfflineStorage.KEYS.AUTH_TOKEN, newToken);
+          if (user) {
             OfflineStorage.save(OfflineStorage.KEYS.USER, user);
-            setIsAuthenticated(true);
-          } else {
-            throw new Error("Invalid auth response");
           }
+          setIsAuthenticated(true);
         } else {
           throw new Error(result.error || "Authentication failed");
         }
@@ -108,7 +119,7 @@ export const useApi = () => {
     };
 
     authenticateUser();
-  }, [tg, token, isOfflineMode]);
+  }, [tg, token, isOfflineMode, getUserData]);
 
   const apiCall = async (endpoint, options = {}) => {
     // Offline rejimda mock data bilan ishlash
@@ -127,30 +138,41 @@ export const useApi = () => {
     }
 
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 soniya timeout
+
       const response = await fetch(url, {
         ...options,
         headers,
+        signal: controller.signal,
       });
 
+      clearTimeout(timeoutId);
+
       if (response.status === 401) {
+        console.log("🔄 Token expired, re-authenticating...");
         setIsAuthenticated(false);
         setToken(null);
         OfflineStorage.remove(OfflineStorage.KEYS.AUTH_TOKEN);
         throw new Error("Authentication required");
       }
 
-      const data = await response.json();
-
       if (!response.ok) {
-        throw new Error(data.error || "API Error");
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
+      const data = await response.json();
       return data;
     } catch (error) {
       console.error("API Call error:", error);
 
-      // Network xatosi bo'lsa, offline rejimga o'tamiz
-      if (error.name === "NetworkError" || error.message.includes("fetch")) {
+      // Network xatosi yoki timeout bo'lsa, offline rejimga o'tamiz
+      if (
+        error.name === "AbortError" ||
+        error.name === "NetworkError" ||
+        error.message.includes("fetch")
+      ) {
+        console.log("🔄 Switching to offline mode due to network error");
         setIsOfflineMode(true);
         return handleOfflineApiCall(endpoint, options);
       }
@@ -177,7 +199,6 @@ export const useApi = () => {
           return {
             success: true,
             data: {
-              success: true,
               token: "offline_mock_token",
               user: OfflineStorage.load(OfflineStorage.KEYS.USER, defaultUser),
             },
@@ -209,7 +230,10 @@ export const useApi = () => {
     );
 
     if (method === "GET") {
-      return currentUser;
+      return {
+        success: true,
+        data: currentUser,
+      };
     } else if (method === "PUT") {
       const updates = JSON.parse(body);
 
@@ -218,14 +242,25 @@ export const useApi = () => {
         const updatedUser = {
           ...currentUser,
           settings: { ...currentUser.settings, ...updates },
+          updated_at: new Date().toISOString(),
         };
         OfflineStorage.save(OfflineStorage.KEYS.USER, updatedUser);
-        return updatedUser;
+        return {
+          success: true,
+          data: updatedUser,
+        };
       } else {
         // Profile yangilash
-        const updatedUser = { ...currentUser, ...updates };
+        const updatedUser = {
+          ...currentUser,
+          ...updates,
+          updated_at: new Date().toISOString(),
+        };
         OfflineStorage.save(OfflineStorage.KEYS.USER, updatedUser);
-        return updatedUser;
+        return {
+          success: true,
+          data: updatedUser,
+        };
       }
     }
   };
@@ -245,8 +280,8 @@ export const useApi = () => {
       const urlParams = new URLSearchParams(endpoint.split("?")[1]);
       const status = urlParams.get("status");
 
-      if (pathParts.length > 0) {
-        // Specific trade by ID
+      if (pathParts.length > 0 && pathParts[0] !== "") {
+        // Specific trade by ID or secret link
         const tradeId = pathParts[0];
         const trade = currentTrades.find(
           (t) => t.id.toString() === tradeId || t.secret_link === tradeId
@@ -254,20 +289,28 @@ export const useApi = () => {
         if (!trade) {
           throw new Error("Savdo topilmadi");
         }
-        return trade;
+        return {
+          success: true,
+          data: trade,
+        };
       }
 
       // Filter by status
-      if (status === "all") {
-        return currentTrades;
+      let filteredTrades = currentTrades;
+      if (status && status !== "all") {
+        filteredTrades = currentTrades.filter((trade) => {
+          if (status === "active")
+            return ["active", "in_progress"].includes(trade.status);
+          if (status === "completed") return trade.status === "completed";
+          if (status === "cancelled") return trade.status === "cancelled";
+          return trade.status === status;
+        });
       }
-      return currentTrades.filter((trade) => {
-        if (status === "active")
-          return ["active", "in_progress"].includes(trade.status);
-        if (status === "completed") return trade.status === "completed";
-        if (status === "cancelled") return trade.status === "cancelled";
-        return true;
-      });
+
+      return {
+        success: true,
+        data: filteredTrades,
+      };
     } else if (method === "POST") {
       const tradeData = JSON.parse(body);
 
@@ -281,6 +324,9 @@ export const useApi = () => {
         }
         if (trade.participant_id) {
           throw new Error("Bu savdoda allaqachon ishtirokchi bor");
+        }
+        if (trade.creator_id === currentUser.id) {
+          throw new Error("O'z savdongizga qo'shila olmaysiz");
         }
 
         const updatedTrade = {
@@ -296,7 +342,11 @@ export const useApi = () => {
           t.id === trade.id ? updatedTrade : t
         );
         OfflineStorage.save(OfflineStorage.KEYS.TRADES, updatedTrades);
-        return updatedTrade;
+
+        return {
+          success: true,
+          data: updatedTrade,
+        };
       } else {
         // Create new trade
         const newTrade = {
@@ -324,7 +374,11 @@ export const useApi = () => {
 
         const updatedTrades = [newTrade, ...currentTrades];
         OfflineStorage.save(OfflineStorage.KEYS.TRADES, updatedTrades);
-        return newTrade;
+
+        return {
+          success: true,
+          data: newTrade,
+        };
       }
     } else if (method === "PUT" && pathParts.length > 0) {
       const tradeId = parseInt(pathParts[0]);
@@ -338,8 +392,10 @@ export const useApi = () => {
       if (actionData.action === "confirm") {
         if (trade.creator_id === currentUser.id) {
           trade.creator_confirmed = true;
-        } else {
+        } else if (trade.participant_id === currentUser.id) {
           trade.participant_confirmed = true;
+        } else {
+          throw new Error("Sizda bu savdoni tasdiqlash huquqi yo'q");
         }
 
         if (trade.creator_confirmed && trade.participant_confirmed) {
@@ -347,8 +403,15 @@ export const useApi = () => {
           trade.completed_at = new Date().toISOString();
         }
       } else if (actionData.action === "cancel") {
+        if (
+          trade.creator_id !== currentUser.id &&
+          trade.participant_id !== currentUser.id
+        ) {
+          throw new Error("Sizda bu savdoni bekor qilish huquqi yo'q");
+        }
         trade.status = "cancelled";
         trade.cancelled_at = new Date().toISOString();
+        trade.cancel_reason = actionData.reason || "Sabab ko'rsatilmagan";
       }
 
       trade.updated_at = new Date().toISOString();
@@ -357,7 +420,11 @@ export const useApi = () => {
         t.id === tradeId ? trade : t
       );
       OfflineStorage.save(OfflineStorage.KEYS.TRADES, updatedTrades);
-      return trade;
+
+      return {
+        success: true,
+        data: trade,
+      };
     }
   };
 
@@ -373,11 +440,25 @@ export const useApi = () => {
     );
 
     if (method === "GET") {
-      return currentPayments.filter(
+      const userPayments = currentPayments.filter(
         (payment) => payment.user_id === currentUser.id
       );
+
+      return {
+        success: true,
+        data: userPayments,
+      };
     } else if (method === "POST") {
       const paymentData = JSON.parse(body);
+
+      // Balance validation for withdraws
+      if (
+        paymentData.type === "withdraw" &&
+        currentUser.balance < paymentData.amount
+      ) {
+        throw new Error("Yetarli balans yo'q");
+      }
+
       const newPayment = {
         id: Date.now(),
         user_id: currentUser.id,
@@ -387,7 +468,7 @@ export const useApi = () => {
         created_at: new Date().toISOString(),
       };
 
-      // Simulate immediate completion for demo
+      // Simulate processing
       setTimeout(() => {
         newPayment.status = "completed";
         newPayment.completed_at = new Date().toISOString();
@@ -400,11 +481,20 @@ export const useApi = () => {
         }
 
         OfflineStorage.save(OfflineStorage.KEYS.USER, currentUser);
+
+        const updatedPayments = currentPayments.map((p) =>
+          p.id === newPayment.id ? newPayment : p
+        );
+        OfflineStorage.save(OfflineStorage.KEYS.PAYMENTS, updatedPayments);
       }, 2000);
 
       const updatedPayments = [newPayment, ...currentPayments];
       OfflineStorage.save(OfflineStorage.KEYS.PAYMENTS, updatedPayments);
-      return newPayment;
+
+      return {
+        success: true,
+        data: newPayment,
+      };
     }
   };
 
