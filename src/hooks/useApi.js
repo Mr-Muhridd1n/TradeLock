@@ -25,6 +25,7 @@ export const useApi = () => {
         });
 
         const data = await response.json();
+        console.log(data);
 
         if (data.success) {
           setToken(data.token);
