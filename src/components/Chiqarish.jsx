@@ -1,204 +1,294 @@
-// src/components/Chiqarish.jsx
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAppContext } from "../context/AppContext";
+import { useMainGlobalContext } from "../hooks/useMainGlobalContext";
 import {
-  formatCurrency,
-  validateAmount,
-  validateCardNumber,
-} from "../utils/formatters";
-import { hapticFeedback } from "../utils/telegram";
-import { ArrowLeft, Wallet, AlertTriangle, TrendingDown } from "lucide-react";
+  CreditCard,
+  Shield,
+  ArrowRight,
+  Copy,
+  Wallet,
+  AlertCircle,
+  CheckCircle,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 
 export const Chiqarish = () => {
-  const navigate = useNavigate();
-  const { payments, user, handleError, showSuccess } = useAppContext();
-  const [amount, setAmount] = useState("");
+  const [withdrawalAmount, setWithdrawalAmount] = useState("");
   const [cardNumber, setCardNumber] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const { result, dispatch } = useMainGlobalContext();
+  const hide = result.user.setting.balance_hide;
 
-  const minAmount = 10000;
-  const maxAmount = user.user?.balance || 0;
-  const commissionRate = 2; // 2%
+  const minWithdrawal = 10000;
+  const maxWithdrawal = 5000000;
+  const totalAmount = withdrawalAmount;
 
-  const handleAmountChange = (value) => {
-    const cleanValue = value.replace(/[^0-9]/g, "");
-    setAmount(cleanValue);
+  const handleWithdraw = async () => {
+    if (!withdrawalAmount || !cardNumber) return;
+
+    setIsProcessing(true);
+
+    // Simulate API call
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    setIsProcessing(false);
+    setShowSuccess(true);
+
+    // Reset form after 3 seconds
+    setTimeout(() => {
+      setShowSuccess(false);
+      setWithdrawalAmount("");
+      setCardNumber("");
+    }, 10000);
   };
 
-  const handleCardNumberChange = (value) => {
-    const cleanValue = value.replace(/[^0-9]/g, "");
-    const formattedValue = cleanValue.replace(/(.{4})/g, "$1 ").trim();
-    setCardNumber(formattedValue);
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat("uz-UZ").format(amount) + " so'm";
   };
-
-  const handleSubmit = async () => {
-    try {
-      const amountError = validateAmount(amount, minAmount, maxAmount);
-      if (amountError) {
-        handleError(new Error(amountError));
-        return;
-      }
-
-      const cardError = validateCardNumber(cardNumber);
-      if (cardError) {
-        handleError(new Error(cardError));
-        return;
-      }
-
-      setIsProcessing(true);
-      hapticFeedback("medium");
-
-      await payments.createWithdraw(
-        parseFloat(amount),
-        cardNumber.replace(/\s/g, "")
-      );
-
-      showSuccess("Chiqarish so'rovi muvaffaqiyatli yuborildi!");
-      hapticFeedback("success");
-      navigate("/hamyon");
-    } catch (error) {
-      handleError(error);
-      hapticFeedback("error");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const commission = amount ? (parseFloat(amount) * commissionRate) / 100 : 0;
-  const totalReceive = amount ? parseFloat(amount) - commission : 0;
-  const isValid =
-    amount && cardNumber && !isProcessing && parseFloat(amount) <= maxAmount;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-green-500 to-green-600 text-white">
-        <div className="flex items-center justify-between p-4">
-          <button
-            onClick={() => navigate("/hamyon")}
-            className="p-2 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
-          >
-            <ArrowLeft className="w-6 h-6" />
-          </button>
-          <h1 className="text-lg font-bold">Mablag' Chiqarish</h1>
-          <div className="w-10"></div>
-        </div>
-      </div>
-
-      <div className="p-4 space-y-6">
-        {/* Balance Info */}
-        <div className="bg-white rounded-2xl p-6 shadow-md">
+      <header className="bg-white shadow-lg border-b border-gray-100">
+        <div className="max-w-4xl mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                <Wallet className="w-6 h-6 text-green-600" />
+              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                <CreditCard className="w-6 h-6 text-white" />
               </div>
-              <div>
-                <p className="text-gray-600">Mavjud balans</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {formatCurrency(maxAmount)}
-                </p>
-              </div>
+              <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                Mablag' Chiqarish
+              </h1>
             </div>
-            <TrendingDown className="w-8 h-8 text-green-500" />
-          </div>
-        </div>
-
-        {/* Amount Input */}
-        <div className="bg-white rounded-2xl p-6 shadow-md">
-          <h3 className="text-lg font-bold text-gray-800 mb-4">
-            Chiqarish summasi
-          </h3>
-          <input
-            type="text"
-            value={amount}
-            onChange={(e) => handleAmountChange(e.target.value)}
-            placeholder="Summani kiriting"
-            className="w-full p-4 border border-gray-200 rounded-xl text-lg font-semibold focus:ring-2 focus:ring-green-500 focus:border-transparent mb-4"
-          />
-
-          {amount && (
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Chiqarilayotgan summa:</span>
-                <span className="font-semibold">
-                  {formatCurrency(parseFloat(amount))}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">
-                  Komissiya ({commissionRate}%):
-                </span>
-                <span className="font-semibold text-red-600">
-                  -{formatCurrency(commission)}
-                </span>
-              </div>
-              <div className="flex justify-between border-t pt-2">
-                <span className="font-semibold">Oladigan summa:</span>
-                <span className="font-bold text-green-600">
-                  {formatCurrency(totalReceive)}
-                </span>
-              </div>
-            </div>
-          )}
-
-          <div className="text-sm text-gray-600 mt-4">
-            <p>Minimal: {formatCurrency(minAmount)}</p>
-            <p>Maksimal: {formatCurrency(maxAmount)}</p>
-          </div>
-        </div>
-
-        {/* Card Number */}
-        <div className="bg-white rounded-2xl p-6 shadow-md">
-          <h3 className="text-lg font-bold text-gray-800 mb-4">Karta raqami</h3>
-          <input
-            type="text"
-            value={cardNumber}
-            onChange={(e) => handleCardNumberChange(e.target.value)}
-            placeholder="0000 0000 0000 0000"
-            maxLength={19}
-            className="w-full p-4 border border-gray-200 rounded-xl text-lg font-mono focus:ring-2 focus:ring-green-500 focus:border-transparent"
-          />
-          <p className="text-sm text-gray-600 mt-2">
-            Mablag' ushbu karta raqamiga o'tkaziladi
-          </p>
-        </div>
-
-        {/* Warning */}
-        <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
-          <div className="flex items-start">
-            <AlertTriangle className="w-5 h-5 text-orange-600 mt-0.5 mr-3 flex-shrink-0" />
-            <div>
-              <h4 className="font-semibold text-orange-800 mb-1">
-                Muhim ma'lumot
-              </h4>
-              <p className="text-sm text-orange-700">
-                Mablag' chiqarish 1-3 ish kuni ichida amalga oshiriladi.
-                Komissiya miqdori {commissionRate}% ni tashkil qiladi.
-              </p>
+            <div className="flex items-center space-x-2 text-green-600">
+              <Shield className="w-5 h-5" />
+              <span className="text-sm font-medium">Xavfsizlik</span>
             </div>
           </div>
         </div>
+      </header>
 
-        {/* Submit Button */}
-        <div className="pb-6">
-          <button
-            onClick={handleSubmit}
-            disabled={!isValid}
-            className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-4 rounded-xl font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed hover:from-green-600 hover:to-green-700 transition-all transform active:scale-95"
-          >
-            {isProcessing ? (
-              <div className="flex items-center justify-center">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                Qayta ishlanmoqda...
+      {/* Main Content */}
+      <main className="max-w-4xl mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Balance Card */}
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-2">
+                  <Wallet className="w-6 h-6 text-blue-500" />
+                  <h2 className="text-lg font-semibold text-gray-800">
+                    Balans
+                  </h2>
+                </div>
+                <button
+                  onClick={() =>
+                    dispatch({
+                      type: "SETHIDE",
+                      payload: !hide,
+                    })
+                  }
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500"
+                >
+                  {!hide ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
               </div>
-            ) : (
-              `${formatCurrency(totalReceive)} chiqarish`
-            )}
-          </button>
+
+              <div className="text-center py-4">
+                <div className="text-3xl font-bold text-gray-800 mb-2">
+                  {hide ? "••• ••• so'm" : formatCurrency(result.balance)}
+                </div>
+                <div className="text-sm text-gray-500">Mavjud balans</div>
+              </div>
+
+              <div className="space-y-3 mt-6">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Minimal chiqarish:</span>
+                  <span className="font-medium text-black/50">
+                    {formatCurrency(minWithdrawal)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Maksimal chiqarish:</span>
+                  <span className="font-medium text-black/50">
+                    {formatCurrency(maxWithdrawal)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Withdrawal Form */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100 mb-20">
+              {showSuccess ? (
+                <div className="text-center py-12">
+                  <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <CheckCircle className="w-10 h-10 text-green-500" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-800 mb-2">
+                    Muvaffaqiyatli!
+                  </h3>
+                  <p className="text-gray-600 mb-4">
+                    Chiqarish so'rovi muvaffaqiyatli yuborildi
+                  </p>
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 max-w-md mx-auto">
+                    <p className="text-sm text-green-700">
+                      {formatCurrency(parseFloat(withdrawalAmount))} - 1-3 ish
+                      kuni ichida kartangizga o'tkaziladi
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Amount Input */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Chiqarish summasi
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={withdrawalAmount}
+                        onChange={(e) => setWithdrawalAmount(e.target.value)}
+                        placeholder="Summani kiriting"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-500"
+                        min={minWithdrawal}
+                        max={maxWithdrawal}
+                      />
+                      <div className="absolute right-3 top-3 text-gray-500">
+                        so'm
+                      </div>
+                    </div>
+                    {withdrawalAmount && (
+                      <div className="mt-2 text-sm text-gray-600">
+                        {parseFloat(withdrawalAmount) < minWithdrawal && (
+                          <div className="flex items-center space-x-1 text-red-500">
+                            <AlertCircle className="w-4 h-4" />
+                            <span>
+                              Minimal summa: {formatCurrency(minWithdrawal)}
+                            </span>
+                          </div>
+                        )}
+                        {parseFloat(withdrawalAmount) > maxWithdrawal && (
+                          <div className="flex items-center space-x-1 text-red-500">
+                            <AlertCircle className="w-4 h-4" />
+                            <span>
+                              Maksimal summa: {formatCurrency(maxWithdrawal)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Card Number Input */}
+                  {withdrawalAmount >= minWithdrawal &&
+                    withdrawalAmount <= maxWithdrawal && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Karta raqami
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={cardNumber}
+                            onChange={(e) => {
+                              const value = e.target.value.replace(/\s/g, "");
+                              const formatted = value
+                                .replace(/(.{4})/g, "$1 ")
+                                .trim();
+                              setCardNumber(formatted);
+                            }}
+                            placeholder="8600 0000 0000 0000"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-blue-500"
+                            maxLength={19}
+                          />
+                          <button className="absolute right-3 top-3 text-gray-400 hover:text-gray-600">
+                            <Copy className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                  {/* Summary */}
+                  {withdrawalAmount && (
+                    <div className="bg-gray-50 rounded-xl p-4 space-y-2 text-blue-500">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">
+                          Chiqarish summasi:
+                        </span>
+                        <span className="font-medium ">
+                          {formatCurrency(parseFloat(withdrawalAmount))}
+                        </span>
+                      </div>
+                      <div className="border-t pt-2 border-gray-500">
+                        <div className="flex justify-between font-semibold">
+                          <span className="text-gray-500">Jami to'lov:</span>
+                          <span>{formatCurrency(totalAmount)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Submit Button */}
+                  <button
+                    onClick={handleWithdraw}
+                    disabled={
+                      !withdrawalAmount ||
+                      !cardNumber ||
+                      parseFloat(withdrawalAmount) < minWithdrawal ||
+                      parseFloat(withdrawalAmount) > maxWithdrawal ||
+                      totalAmount > result.balance ||
+                      isProcessing
+                    }
+                    className={`w-full py-4 rounded-xl font-medium transition-all flex items-center justify-center space-x-2 ${
+                      !withdrawalAmount ||
+                      !cardNumber ||
+                      parseFloat(withdrawalAmount) < minWithdrawal ||
+                      parseFloat(withdrawalAmount) > maxWithdrawal ||
+                      totalAmount > result.balance ||
+                      isProcessing
+                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                        : "bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 shadow-lg hover:shadow-xl"
+                    }`}
+                  >
+                    {isProcessing ? (
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <>
+                        <span>Chiqarish</span>
+                        <ArrowRight className="w-5 h-5" />
+                      </>
+                    )}
+                  </button>
+
+                  {/* Security Note */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-start space-x-3">
+                      <Shield className="w-5 h-5 text-blue-500 mt-0.5" />
+                      <div className="text-sm text-blue-700">
+                        <div className="font-medium mb-1">
+                          Xavfsizlik eslatmasi
+                        </div>
+                        <div>
+                          Barcha tranzaksiyalar xavfsiz SSL shifrlash bilan
+                          himoyalangan. Mablag' 1-3 ish kuni ichida o'tkaziladi.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 };

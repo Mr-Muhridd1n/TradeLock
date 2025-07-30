@@ -1,703 +1,671 @@
-// src/pages/Savdolar.jsx - To'liq versiya
-import React, { useState, useMemo } from "react";
-import { Link, useParams, useNavigate } from "react-router-dom";
-import { useAppContext } from "../context/AppContext";
-import {
-  formatCurrency,
-  validateAmount,
-  validateTradeName,
-} from "../utils/formatters";
-import { shareTradeLink, hapticFeedback, showConfirm } from "../utils/telegram";
-import { TradeCard } from "../components/TradeCard";
-import { SearchBar } from "../components/SearchBar";
-import { FilterModal } from "../components/FilterModal";
-import { EmptyState } from "../components/EmptyState";
-import { ListSkeleton } from "../components/SkeletonLoaders";
-import {
-  AlertTriangle,
-  Copy,
-  CheckCircle,
-  Filter,
-  Plus,
-  ArrowLeft,
-  DollarSign,
-  Percent,
-  User,
-  X,
-} from "lucide-react";
+import { Link, NavLink, useNavigate, useParams } from "react-router-dom";
+import { Sotuvchi } from "../components/Sotuvchi";
+import { Oluvchi } from "../components/Oluvchi";
+import { Header } from "../components/Header";
+import { useMainGlobalContext } from "../hooks/useMainGlobalContext";
+import { useState } from "react";
+import { FormatNumber } from "../components/FormatNumber";
+import { AlertTriangle, Copy } from "lucide-react";
 
 export const Savdolar = () => {
-  const { action } = useParams();
+  const { result, dispatch } = useMainGlobalContext();
+  const { yangi_savdo } = useParams();
+  const [type, setType] = useState("sotish");
+  const [savdoSummasi, setSavdoSummasi] = useState("");
+  const [savdoKomissiyasi, setsavdoKomissiyasi] = useState("men");
+  const [savdoName, setSavdoName] = useState("");
+  const [view, setView] = useState(null);
+  const [_type, _setType] = useState("faol");
+  const [showModal, setShowModal] = useState(false);
+  const savdoHavola = "liughflka_jdsbc_li";
   const navigate = useNavigate();
-  const { trades, user, handleError, showSuccess } = useAppContext();
+  const formatDate = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0"); // Months are 0-based, so +1
+    const day = String(date.getDate()).padStart(2, "0");
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
 
-  const [activeTab, setActiveTab] = useState("faol");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [showFilterModal, setShowFilterModal] = useState(false);
-  const [filters, setFilters] = useState({
-    status: "all",
-    dateRange: "all",
-    amountRange: { min: "", max: "" },
-    tradeType: "all",
-  });
-
-  // New trade form state
-  const [formData, setFormData] = useState({
-    trade_type: "sell",
-    trade_name: "",
-    amount: "",
-    commission_type: "creator",
-  });
-  const [isCreating, setIsCreating] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [createdTrade, setCreatedTrade] = useState(null);
-
-  // Filter and search logic
-  const filteredTrades = useMemo(() => {
-    let result = trades.trades;
-
-    // Tab filter
-    if (activeTab === "faol") {
-      result = result.filter((trade) =>
-        ["active", "in_progress"].includes(trade.status)
-      );
-    } else if (activeTab === "tarix") {
-      result = result.filter((trade) =>
-        ["completed", "cancelled"].includes(trade.status)
-      );
-    }
-
-    // Search filter
-    if (searchQuery) {
-      result = result.filter(
-        (trade) =>
-          trade.trade_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          trade.creator_name
-            ?.toLowerCase()
-            .includes(searchQuery.toLowerCase()) ||
-          trade.participant_name
-            ?.toLowerCase()
-            .includes(searchQuery.toLowerCase())
-      );
-    }
-
-    // Status filter
-    if (filters.status !== "all") {
-      result = result.filter((trade) => trade.status === filters.status);
-    }
-
-    // Trade type filter
-    if (filters.tradeType !== "all") {
-      result = result.filter((trade) => trade.trade_type === filters.tradeType);
-    }
-
-    // Amount range filter
-    if (filters.amountRange.min) {
-      result = result.filter(
-        (trade) => trade.amount >= parseFloat(filters.amountRange.min)
-      );
-    }
-    if (filters.amountRange.max) {
-      result = result.filter(
-        (trade) => trade.amount <= parseFloat(filters.amountRange.max)
-      );
-    }
-
-    // Date range filter
-    if (filters.dateRange !== "all") {
-      const now = new Date();
-      const filterDate = new Date();
-
-      switch (filters.dateRange) {
-        case "today":
-          filterDate.setHours(0, 0, 0, 0);
-          break;
-        case "week":
-          filterDate.setDate(now.getDate() - 7);
-          break;
-        case "month":
-          filterDate.setMonth(now.getMonth() - 1);
-          break;
-        case "quarter":
-          filterDate.setMonth(now.getMonth() - 3);
-          break;
-        default:
-          break;
-      }
-
-      if (filters.dateRange !== "all") {
-        result = result.filter(
-          (trade) => new Date(trade.created_at) >= filterDate
-        );
-      }
-    }
-
-    return result;
-  }, [trades.trades, activeTab, searchQuery, filters]);
-
-  const handleFormChange = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    return `${year}.${month}.${day} ${hours}:${minutes}`;
   };
 
-  const validateForm = () => {
-    const amountError = validateAmount(formData.amount);
-    if (amountError) {
-      handleError(new Error(amountError));
-      return false;
-    }
-
-    const nameError = validateTradeName(formData.trade_name);
-    if (nameError) {
-      handleError(new Error(nameError));
-      return false;
-    }
-
-    if (formData.commission_type === "creator") {
-      const commissionAmount = (parseFloat(formData.amount) * 2) / 100;
-      if (user.user.balance < commissionAmount) {
-        handleError(new Error("Komissiya uchun yetarli balans yo'q"));
-        return false;
-      }
-    }
-
-    return true;
+  const createSavdo = () => {
+    dispatch({
+      type: "NEWSAVDO",
+      payload: {
+        id: 4,
+        status: type == "sotish" ? "sotuvchi" : "oluvchi",
+        holat: "faol",
+        user_target: null,
+        navbat: type == "sotish" ? false : true,
+        time: formatDate(new Date()),
+        value: savdoSummasi,
+        komissiya: savdoKomissiyasi,
+        active: true,
+        savdoName: savdoName ? savdoName : "Nomalum savdo",
+      },
+    });
+    setShowModal(true);
   };
 
-  const handleCreateTrade = async () => {
-    if (!validateForm()) return;
-
-    try {
-      setIsCreating(true);
-      hapticFeedback("medium");
-
-      const result = await trades.createTrade({
-        ...formData,
-        amount: parseFloat(formData.amount),
-      });
-
-      setCreatedTrade(result);
-      setShowSuccessModal(true);
-      hapticFeedback("success");
-    } catch (error) {
-      handleError(error);
-      hapticFeedback("error");
-    } finally {
-      setIsCreating(false);
-    }
-  };
-
-  const handleShareTrade = () => {
-    if (createdTrade?.share_url) {
-      shareTradeLink(createdTrade.share_url);
-      hapticFeedback("light");
-    }
-  };
-
-  const handleApplyFilters = (newFilters) => {
-    setFilters(newFilters);
-  };
-
-  const handleClearSearch = () => {
-    setSearchQuery("");
-  };
-
-  // New Trade Form Component
-  if (action === "new") {
-    const commissionAmount = formData.amount
-      ? (parseFloat(formData.amount) * 2) / 100
-      : 0;
-
-    return (
-      <>
-        <div className="min-h-screen bg-gray-50">
-          {/* Header */}
-          <div className="bg-gradient-to-r from-green-500 to-green-600 text-white">
-            <div className="flex items-center justify-between p-4">
-              <button
-                onClick={() => navigate("/savdolar")}
-                className="p-2 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
-              >
-                <ArrowLeft className="w-6 h-6" />
-              </button>
-              <h1 className="text-lg font-bold">Yangi Savdo Yaratish</h1>
-              <div className="w-10"></div>
-            </div>
+  if (view) {
+    <div className="w-full h-screen flex bg-black/50 items-center justify-center fixed z-10 top-0 px-3">
+      <div className="bg-white w-full mx-auto p-6 rounded-2xl shadow-lg flex mb-5 flex-col gap-4 ">
+        <h2 className="text-2xl font-bold text-gray-800 tracking-tight">
+          Savdo yaratish natijasi
+        </h2>
+        <div className="bg-gray-100 w-full flex flex-col rounded-xl p-4 gap-3 transition-all duration-300 hover:shadow-md">
+          <div className="flex justify-between items-center">
+            <span className="text-gray-600 font-medium">Savdo nomi:</span>
+            <span className="text-gray-800 font-semibold">
+              {savdoName || "Nomalum"}
+            </span>
           </div>
-
-          <div className="p-4 space-y-6">
-            {/* Trade Type Selection */}
-            <div className="bg-white rounded-2xl p-6 shadow-md">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">
-                Savdo turi
-              </h3>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => {
-                    handleFormChange("trade_type", "sell");
-                    hapticFeedback("selection");
-                  }}
-                  className={`p-4 rounded-xl border-2 transition-all ${
-                    formData.trade_type === "sell"
-                      ? "border-green-500 bg-green-50"
-                      : "border-gray-200 hover:border-gray-300"
-                  }`}
-                >
-                  <div className="text-center">
-                    <div className="text-2xl mb-2">💰</div>
-                    <div className="font-semibold text-gray-800">Sotish</div>
-                    <div className="text-sm text-gray-500">Men sotuvchiman</div>
-                  </div>
-                </button>
-                <button
-                  onClick={() => {
-                    handleFormChange("trade_type", "buy");
-                    hapticFeedback("selection");
-                  }}
-                  className={`p-4 rounded-xl border-2 transition-all ${
-                    formData.trade_type === "buy"
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-gray-200 hover:border-gray-300"
-                  }`}
-                >
-                  <div className="text-center">
-                    <div className="text-2xl mb-2">🛒</div>
-                    <div className="font-semibold text-gray-800">
-                      Sotib olish
-                    </div>
-                    <div className="text-sm text-gray-500">Men xaridorman</div>
-                  </div>
-                </button>
-              </div>
+          <div className="flex justify-between items-center">
+            <span className="text-gray-600 font-medium">Savdo summasi:</span>
+            <span className="text-gray-800 font-semibold">
+              {FormatNumber(savdoSummasi)} UZS
+            </span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-gray-600 font-medium">Komissiya:</span>
+            <span className="text-gray-800 font-semibold">
+              {savdoKomissiyasi === "men"
+                ? "Sizdan"
+                : savdoKomissiyasi === "ortada"
+                ? "Ortada"
+                : type === "sotish"
+                ? "Oluvchi tomonidan"
+                : "Sotuvchi tomonidan"}
+            </span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-gray-600 font-medium">
+              Komissiya summasi:
+            </span>
+            <span className="text-gray-800 font-semibold">
+              {FormatNumber((savdoSummasi / 100) * 2)} UZS
+            </span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-gray-600 font-medium">
+              {type === "sotish" ? "Siz qabul qilasiz" : "Siz sarflaysiz"}:
+            </span>
+            <span
+              className={`${
+                type === "sotish" ? `text-green-600` : `text-red-600`
+              } font-bold`}
+            >
+              {FormatNumber(
+                type === "sotish"
+                  ? savdoKomissiyasi === "men"
+                    ? Number(savdoSummasi) - (Number(savdoSummasi) / 100) * 2
+                    : savdoKomissiyasi === "ortada"
+                    ? Number(savdoSummasi) -
+                      ((Number(savdoSummasi) / 100) * 2) / 2
+                    : Number(savdoSummasi)
+                  : savdoKomissiyasi === "men"
+                  ? Number(savdoSummasi) + (Number(savdoSummasi) / 100) * 2
+                  : savdoKomissiyasi === "ortada"
+                  ? Number(savdoSummasi) -
+                    ((Number(savdoSummasi) / 100) * 2) / 2
+                  : Number(savdoSummasi)
+              )}{" "}
+              UZS
+            </span>
+          </div>
+          <div
+            className="flex justify-between items-center cursor-pointer mb-3"
+            onClick={() =>
+              navigator.clipboard.writeText(
+                `https://t.me/Trade_Lock_bot/start_app/view?${savdoHavola}`
+              )
+            }
+          >
+            <span className="text-gray-600 font-medium">Savdo Havolasi:</span>
+            <span className="text-gray-800 font-semibold flex items-center gap-3">
+              {savdoHavola} <Copy className="w-4 h-4" />
+            </span>
+          </div>
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-3">
+            <div className="flex items-center space-x-2 mb-2">
+              <AlertTriangle className="w-5 h-5 text-yellow-600" />
+              <span className="font-semibold text-yellow-800">
+                Nima qilishim kerak:
+              </span>
             </div>
-
-            {/* Trade Name */}
-            <div className="bg-white rounded-2xl p-6 shadow-md">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">
-                Savdo nomi
-              </h3>
-              <input
-                type="text"
-                value={formData.trade_name}
-                onChange={(e) => handleFormChange("trade_name", e.target.value)}
-                placeholder="Masalan: iPhone 15 Pro Max 256GB"
-                className="w-full p-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              />
-              <p className="text-sm text-gray-600 mt-2">
-                Nima sotmoqchi yoki sotib olmoqchisiz?
-              </p>
-            </div>
-
-            {/* Amount */}
-            <div className="bg-white rounded-2xl p-6 shadow-md">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">
-                Savdo summasi
-              </h3>
-              <div className="relative">
-                <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
-                  value={formData.amount}
-                  onChange={(e) => {
-                    const cleanValue = e.target.value.replace(/[^0-9]/g, "");
-                    handleFormChange("amount", cleanValue);
-                  }}
-                  placeholder="0"
-                  className="w-full pl-12 pr-4 py-4 border border-gray-200 rounded-xl text-lg font-semibold focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                />
-              </div>
-              {formData.amount && (
-                <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-600 mb-1">
-                    Formatli ko'rinish:
-                  </p>
-                  <p className="text-lg font-bold text-green-600">
-                    {formatCurrency(parseFloat(formData.amount) || 0)}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Commission */}
-            <div className="bg-white rounded-2xl p-6 shadow-md">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">
-                <Percent className="inline w-5 h-5 mr-2" />
-                Komissiya (2%)
-              </h3>
-              <div className="space-y-3">
-                <button
-                  onClick={() => {
-                    handleFormChange("commission_type", "creator");
-                    hapticFeedback("selection");
-                  }}
-                  className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
-                    formData.commission_type === "creator"
-                      ? "border-green-500 bg-green-50"
-                      : "border-gray-200 hover:border-gray-300"
-                  }`}
-                >
-                  <div className="font-semibold text-gray-800">
-                    Men to'layman
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    Komissiyani o'zim to'layman (
-                    {formatCurrency(commissionAmount)})
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => {
-                    handleFormChange("commission_type", "participant");
-                    hapticFeedback("selection");
-                  }}
-                  className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
-                    formData.commission_type === "participant"
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-gray-200 hover:border-gray-300"
-                  }`}
-                >
-                  <div className="font-semibold text-gray-800">
-                    {formData.trade_type === "sell" ? "Xaridor" : "Sotuvchi"}{" "}
-                    to'laydi
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    Ikkinchi tomon komissiyani to'laydi (
-                    {formatCurrency(commissionAmount)})
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => {
-                    handleFormChange("commission_type", "split");
-                    hapticFeedback("selection");
-                  }}
-                  className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
-                    formData.commission_type === "split"
-                      ? "border-purple-500 bg-purple-50"
-                      : "border-gray-200 hover:border-gray-300"
-                  }`}
-                >
-                  <div className="font-semibold text-gray-800">
-                    Teng taqsimlash
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    Har biri {formatCurrency(commissionAmount / 2)} to'laydi
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            {/* Balance Warning */}
-            {formData.commission_type === "creator" && commissionAmount > 0 && (
-              <div
-                className={`rounded-xl p-4 ${
-                  user.user.balance >= commissionAmount
-                    ? "bg-green-50 border border-green-200"
-                    : "bg-red-50 border border-red-200"
-                }`}
-              >
-                <div className="flex items-start">
-                  {user.user.balance >= commissionAmount ? (
-                    <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
-                  ) : (
-                    <AlertTriangle className="w-5 h-5 text-red-500 mt-0.5 mr-3 flex-shrink-0" />
-                  )}
-                  <div>
-                    <h4
-                      className={`font-semibold mb-1 ${
-                        user.user.balance >= commissionAmount
-                          ? "text-green-800"
-                          : "text-red-800"
-                      }`}
-                    >
-                      Balans holati
-                    </h4>
-                    <p
-                      className={`text-sm ${
-                        user.user.balance >= commissionAmount
-                          ? "text-green-700"
-                          : "text-red-700"
-                      }`}
-                    >
-                      Sizning balansingiz: {formatCurrency(user.user.balance)}
-                      <br />
-                      Kerakli komissiya: {formatCurrency(commissionAmount)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Create Button */}
-            <div className="pb-6">
-              <button
-                onClick={handleCreateTrade}
-                disabled={
-                  isCreating || !formData.trade_name || !formData.amount
-                }
-                className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-4 rounded-xl font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed hover:from-green-600 hover:to-green-700 transition-all transform active:scale-95"
-              >
-                {isCreating ? (
-                  <div className="flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                    Yaratilmoqda...
-                  </div>
-                ) : (
-                  "Savdo Yaratish"
-                )}
-              </button>
-            </div>
+            <ul className="text-sm text-yellow-700 space-y-1">
+              <li>• Savdo havolasini nusha oling</li>
+              <li>• Savdo qilmoqchi bolgan dostingizga yuboring</li>
+              <li>• Savdoni boshlashini so'rang</li>
+            </ul>
+          </div>
+          <div className="flex space-x-3">
+            <button
+              onClick={() => {
+                setShowModal(false);
+                navigate("/");
+              }}
+              className="flex-1 py-3 px-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-semibold hover:from-blue-600 hover:to-purple-700 transition-all"
+            >
+              Tushundim
+            </button>
           </div>
         </div>
+      </div>
+    </div>;
+  }
 
-        {/* Success Modal */}
-        {showSuccessModal && createdTrade && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
-              <div className="bg-gradient-to-r from-green-50 to-green-100 px-6 py-4 border-l-4 border-green-500">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
-                      <CheckCircle className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-bold text-gray-800">
-                        Savdo yaratildi!
-                      </h2>
-                      <p className="text-green-700 text-sm">
-                        Muvaffaqiyatli yaratildi
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setShowSuccessModal(false);
-                      navigate("/savdolar");
-                    }}
-                    className="p-2 hover:bg-green-200 rounded-full transition-colors"
-                  >
-                    <X className="w-5 h-5 text-green-600" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-6 space-y-4">
-                <div className="text-center">
-                  <h3 className="text-lg font-bold text-gray-800 mb-2">
-                    {createdTrade.trade_name}
-                  </h3>
-                  <div className="text-2xl font-bold text-green-600 mb-4">
-                    {formatCurrency(createdTrade.amount)}
-                  </div>
-                </div>
-
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <p className="text-sm text-gray-600 mb-2">Savdo havolasi:</p>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="text"
-                      value={createdTrade.share_url}
-                      readOnly
-                      className="flex-1 p-2 bg-white border border-gray-200 rounded-lg text-sm"
-                    />
+  if (yangi_savdo == "new") {
+    return (
+      <>
+        <Header title={"new_savdolar"} />
+        <main>
+          <section>
+            <div className="align-elements">
+              <div className="w-full flex flex-col">
+                <div className="flex my-5 flex-col w-full gap-3">
+                  <p className="text-base font-semibold text-left text-gray-500 m-0 p-0">
+                    Nima qilmoqchisiz ?
+                  </p>
+                  <div className="flex w-full bg-white rounded-2xl shadow-md p-1">
                     <button
+                      className={
+                        type == "sotish"
+                          ? "flex-1/2 p-3 rounded-[10px] font-semibold cursor-pointer transition-all duration-300 ease bg-transparent text-white bg-gradient-to-br from-[#4facfe] to-[#00f2fe]"
+                          : "flex-1/3 p-3 rounded-[10px] font-semibold cursor-pointer transition-all duration-300 ease bg-transparent text-[#7f8c8d]"
+                      }
                       onClick={() => {
-                        navigator.clipboard.writeText(createdTrade.share_url);
-                        hapticFeedback("light");
+                        setType("sotish");
                       }}
-                      className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
                     >
-                      <Copy className="w-4 h-4" />
+                      Sotmoqchi
+                    </button>
+                    <button
+                      className={
+                        type == "sotib_olish"
+                          ? "flex-1/3 p-3 rounded-[10px] font-semibold cursor-pointer transition-all duration-300 ease bg-transparent text-white bg-gradient-to-br from-[#4facfe] to-[#00f2fe]"
+                          : "flex-1/3 p-3 rounded-[10px] font-semibold cursor-pointer transition-all duration-300 ease bg-transparent text-[#7f8c8d]"
+                      }
+                      onClick={() => {
+                        setType("sotib_olish");
+                      }}
+                    >
+                      Sotib olmoqchi
                     </button>
                   </div>
                 </div>
+              </div>
 
-                <div className="flex space-x-3">
+              <div className="w-full flex flex-col gap-3 mb-5">
+                <div className="flex gap-3">
+                  <p className="text-base font-semibold text-left text-gray-500 m-0 p-0">
+                    Savdo summasini kiriting !
+                  </p>
+                  {savdoSummasi > 0 && (
+                    <p className="text-base font-semibold text-left text-gray-500 m-0 p-0">
+                      Savdo summasi: {FormatNumber(savdoSummasi)} uzs
+                    </p>
+                  )}
+                </div>
+
+                <input
+                  type="text"
+                  required
+                  minLength="4"
+                  value={
+                    savdoSummasi >= 1000
+                      ? FormatNumber(savdoSummasi)
+                      : savdoSummasi
+                  }
+                  placeholder="Savdo summasini kiriting!"
+                  className="flex w-full bg-white rounded-2xl shadow-md p-3.5 text-gray-500 text-base font-semibold outline-0"
+                  onInput={(e) => {
+                    const filteredValue = e.target.value.replace(/[^0-9]/g, "");
+                    setSavdoSummasi(filteredValue.replace(/^0+/, ""));
+                  }}
+                />
+              </div>
+
+              <div className="w-full flex flex-col gap-3 mb-5">
+                <p className="text-base font-semibold text-left text-gray-500 m-0 p-0">
+                  Savdo uchun komissiya kim tomonidan beriladi ? komissiya 2%
+                </p>
+                <div className="flex w-full bg-white rounded-2xl shadow-md p-1">
                   <button
-                    onClick={handleShareTrade}
-                    className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 rounded-xl font-semibold hover:from-blue-600 hover:to-blue-700 transition-all"
+                    className={
+                      savdoKomissiyasi == "men"
+                        ? "flex-1/3 p-3 rounded-[10px] font-semibold cursor-pointer transition-all duration-300 ease bg-transparent text-white bg-gradient-to-br from-[#4facfe] to-[#00f2fe]"
+                        : "flex-1/3 p-3 rounded-[10px] font-semibold cursor-pointer transition-all duration-300 ease bg-transparent text-[#7f8c8d]"
+                    }
+                    onClick={() => {
+                      setsavdoKomissiyasi("men");
+                    }}
                   >
-                    Ulashish
+                    Men tomonimdan
                   </button>
                   <button
+                    className={
+                      savdoKomissiyasi == "ortada"
+                        ? "flex-1/3 p-3 rounded-[10px] font-semibold cursor-pointer transition-all duration-300 ease bg-transparent text-white bg-gradient-to-br from-[#4facfe] to-[#00f2fe]"
+                        : "flex-1/3 p-3 rounded-[10px] font-semibold cursor-pointer transition-all duration-300 ease bg-transparent text-[#7f8c8d]"
+                    }
                     onClick={() => {
-                      setShowSuccessModal(false);
-                      navigate("/savdolar");
+                      setsavdoKomissiyasi("ortada");
                     }}
-                    className="flex-1 bg-gray-200 text-gray-800 py-3 rounded-xl font-semibold hover:bg-gray-300 transition-colors"
                   >
-                    Yopish
+                    O'rtada
+                  </button>
+                  <button
+                    className={
+                      savdoKomissiyasi == "undan"
+                        ? "flex-1/3 p-3 rounded-[10px] font-semibold cursor-pointer transition-all duration-300 ease bg-transparent text-white bg-gradient-to-br from-[#4facfe] to-[#00f2fe]"
+                        : "flex-1/3 p-3 rounded-[10px] font-semibold cursor-pointer transition-all duration-300 ease bg-transparent text-[#7f8c8d]"
+                    }
+                    onClick={() => {
+                      setsavdoKomissiyasi("undan");
+                    }}
+                  >
+                    {type == "sotish"
+                      ? "Oluvchi tomonidan"
+                      : "Sotuvchi tomonidan"}
                   </button>
                 </div>
               </div>
+
+              <div className="w-full flex flex-col gap-3 mb-5">
+                <div className="flex gap-3">
+                  <p className="text-base font-semibold text-left text-gray-500 m-0 p-0">
+                    Savdo uchun nom bering ! (Maximal belgilar: 25ta)
+                  </p>
+                </div>
+
+                <input
+                  type="text"
+                  required
+                  minLength="3"
+                  maxLength="25"
+                  value={savdoName}
+                  placeholder="Savdo uchun nom kiriting!"
+                  className="flex w-full bg-white rounded-2xl shadow-md p-3.5 text-gray-500 text-base font-semibold outline-0"
+                  onInput={(e) => {
+                    const value = e.target.value || "";
+                    const savdoSS = value.replace(/[\\"'`;]|--|\/*/g, "");
+                    setSavdoName(savdoSS);
+                  }}
+                />
+              </div>
+
+              <div className="bg-white w-full mx-auto p-6 rounded-2xl shadow-lg flex mb-5 flex-col gap-4 ">
+                <h2 className="text-2xl font-bold text-gray-800 tracking-tight">
+                  Savdo yaratish natijasi
+                </h2>
+                <div className="bg-gray-100 w-full flex flex-col rounded-xl p-4 gap-3 transition-all duration-300 hover:shadow-md">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 font-medium">
+                      Savdo nomi:
+                    </span>
+                    <span className="text-gray-800 font-semibold">
+                      {savdoName || "Nomalum"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 font-medium">
+                      Savdo summasi:
+                    </span>
+                    <span className="text-gray-800 font-semibold">
+                      {FormatNumber(savdoSummasi)} UZS
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 font-medium">
+                      Komissiya:
+                    </span>
+                    <span className="text-gray-800 font-semibold">
+                      {savdoKomissiyasi === "men"
+                        ? "Sizdan"
+                        : savdoKomissiyasi === "ortada"
+                        ? "Ortada"
+                        : type === "sotish"
+                        ? "Oluvchi tomonidan"
+                        : "Sotuvchi tomonidan"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 font-medium">
+                      Komissiya summasi:
+                    </span>
+                    <span className="text-gray-800 font-semibold">
+                      {FormatNumber((savdoSummasi / 100) * 2)} UZS
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 font-medium">
+                      {type === "sotish"
+                        ? "Siz qabul qilasiz"
+                        : "Siz sarflaysiz"}
+                      :
+                    </span>
+                    <span
+                      className={`${
+                        type === "sotish" ? `text-green-600` : `text-red-600`
+                      } font-bold`}
+                    >
+                      {FormatNumber(
+                        type === "sotish"
+                          ? savdoKomissiyasi === "men"
+                            ? Number(savdoSummasi) -
+                              (Number(savdoSummasi) / 100) * 2
+                            : savdoKomissiyasi === "ortada"
+                            ? Number(savdoSummasi) -
+                              ((Number(savdoSummasi) / 100) * 2) / 2
+                            : Number(savdoSummasi)
+                          : savdoKomissiyasi === "men"
+                          ? Number(savdoSummasi) +
+                            (Number(savdoSummasi) / 100) * 2
+                          : savdoKomissiyasi === "ortada"
+                          ? Number(savdoSummasi) -
+                            ((Number(savdoSummasi) / 100) * 2) / 2
+                          : Number(savdoSummasi)
+                      )}{" "}
+                      UZS
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mb-25 flex gap-4 w-full bg-white rounded-2xl shadow-md p-1">
+                <button
+                  className={`flex-1/2  p-3 rounded-[10px] font-semibold cursor-pointer transition-all duration-300 ease bg-transparent text-white bg-gradient-to-br from-[#4facfe] to-[#00f2fe] ${
+                    Number(savdoSummasi) >= 1000 ? "" : "hidden"
+                  }`}
+                  onClick={() => {
+                    createSavdo();
+                  }}
+                >
+                  Savdoni boshlash
+                </button>
+                <NavLink to="/savdolar" className="flex-1/2">
+                  <button className="w-full p-3 rounded-[10px] font-semibold cursor-pointer transition-all duration-300 ease bg-transparent text-white bg-gradient-to-br from-[#fe4f4f] to-[#fea900]">
+                    Bekor qilish
+                  </button>
+                </NavLink>
+              </div>
             </div>
-          </div>
-        )}
+          </section>
+          {showModal && (
+            <div className="w-full h-screen flex bg-black/50 items-center justify-center fixed z-10 top-0 px-3">
+              <div className="bg-white w-full mx-auto p-6 rounded-2xl shadow-lg flex mb-5 flex-col gap-4 ">
+                <h2 className="text-2xl font-bold text-gray-800 tracking-tight">
+                  Savdo yaratish natijasi
+                </h2>
+                <div className="bg-gray-100 w-full flex flex-col rounded-xl p-4 gap-3 transition-all duration-300 hover:shadow-md">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 font-medium">
+                      Savdo nomi:
+                    </span>
+                    <span className="text-gray-800 font-semibold">
+                      {savdoName || "Nomalum"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 font-medium">
+                      Savdo summasi:
+                    </span>
+                    <span className="text-gray-800 font-semibold">
+                      {FormatNumber(savdoSummasi)} UZS
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 font-medium">
+                      Komissiya:
+                    </span>
+                    <span className="text-gray-800 font-semibold">
+                      {savdoKomissiyasi === "men"
+                        ? "Sizdan"
+                        : savdoKomissiyasi === "ortada"
+                        ? "Ortada"
+                        : type === "sotish"
+                        ? "Oluvchi tomonidan"
+                        : "Sotuvchi tomonidan"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 font-medium">
+                      Komissiya summasi:
+                    </span>
+                    <span className="text-gray-800 font-semibold">
+                      {FormatNumber((savdoSummasi / 100) * 2)} UZS
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 font-medium">
+                      {type === "sotish"
+                        ? "Siz qabul qilasiz"
+                        : "Siz sarflaysiz"}
+                      :
+                    </span>
+                    <span
+                      className={`${
+                        type === "sotish" ? `text-green-600` : `text-red-600`
+                      } font-bold`}
+                    >
+                      {FormatNumber(
+                        type === "sotish"
+                          ? savdoKomissiyasi === "men"
+                            ? Number(savdoSummasi) -
+                              (Number(savdoSummasi) / 100) * 2
+                            : savdoKomissiyasi === "ortada"
+                            ? Number(savdoSummasi) -
+                              ((Number(savdoSummasi) / 100) * 2) / 2
+                            : Number(savdoSummasi)
+                          : savdoKomissiyasi === "men"
+                          ? Number(savdoSummasi) +
+                            (Number(savdoSummasi) / 100) * 2
+                          : savdoKomissiyasi === "ortada"
+                          ? Number(savdoSummasi) -
+                            ((Number(savdoSummasi) / 100) * 2) / 2
+                          : Number(savdoSummasi)
+                      )}{" "}
+                      UZS
+                    </span>
+                  </div>
+                  <div
+                    className="flex justify-between items-center cursor-pointer mb-3"
+                    onClick={() =>
+                      navigator.clipboard.writeText(
+                        `https://t.me/Trade_Lock_bot/start_app/view?${savdoHavola}`
+                      )
+                    }
+                  >
+                    <span className="text-gray-600 font-medium">
+                      Savdo Havolasi:
+                    </span>
+                    <span className="text-gray-800 font-semibold flex items-center gap-3">
+                      {savdoHavola} <Copy className="w-4 h-4" />
+                    </span>
+                  </div>
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-3">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <AlertTriangle className="w-5 h-5 text-yellow-600" />
+                      <span className="font-semibold text-yellow-800">
+                        Nima qilishim kerak:
+                      </span>
+                    </div>
+                    <ul className="text-sm text-yellow-700 space-y-1">
+                      <li>• Savdo havolasini nusha oling</li>
+                      <li>• Savdo qilmoqchi bolgan dostingizga yuboring</li>
+                      <li>• Savdoni boshlashini so'rang</li>
+                    </ul>
+                  </div>
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={() => {
+                        setShowModal(false);
+                        navigate("/");
+                      }}
+                      className="flex-1 py-3 px-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-semibold hover:from-blue-600 hover:to-purple-700 transition-all"
+                    >
+                      Tushundim
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </main>
+      </>
+    );
+  } else {
+    const data = result.data.savdolar;
+    let faol = data.filter((item) => item.holat == "faol").length;
+    let bekorQilingan = data.filter(
+      (item) => item.holat == "bekor qilingan"
+    ).length;
+    let yakunlangan = data.filter((item) => item.holat == "yakunlangan").length;
+    return (
+      <>
+        <Header title={"savdolar"} />
+        <main className="">
+          <section>
+            <div className="grid grid-cols-3 gap-3.5 my-5 align-elements">
+              <div className="bg-white p-3.5 rounded-2xl text-center shadow-md">
+                <div className="text-xl font-bold mb-1 text-[#2c3e50]">
+                  {faol}
+                </div>
+                <div className="text-[#7f8c8d] text-xs">Faol</div>
+              </div>
+              <div className="bg-white p-3.5 rounded-2xl text-center shadow-md">
+                <div className="text-xl font-bold mb-1 text-[#2c3e50]">
+                  {yakunlangan}
+                </div>
+                <div className="text-[#7f8c8d] text-xs">Yakunlangan</div>
+              </div>
+              <div className="bg-white p-3.5 rounded-2xl text-center shadow-md">
+                <div className="text-xl font-bold mb-1 text-[#2c3e50]">
+                  {bekorQilingan}
+                </div>
+                <div className="text-[#7f8c8d] text-xs">Bekor qilingan</div>
+              </div>
+            </div>
+
+            {/* faol / tarix / hammasi */}
+            <div className="align-elements">
+              <div className="flex my-5 bg-white rounded-2xl shadow-md p-1">
+                <button
+                  className={
+                    _type == "faol"
+                      ? "flex-1/3 p-3 rounded-[10px] font-semibold cursor-pointer transition-all duration-300 ease bg-transparent text-white bg-gradient-to-br from-[#4facfe] to-[#00f2fe]"
+                      : "flex-1/3 p-3 rounded-[10px] font-semibold cursor-pointer transition-all duration-300 ease bg-transparent text-[#7f8c8d]"
+                  }
+                  onClick={() => {
+                    _setType("faol");
+                  }}
+                >
+                  Faol
+                </button>
+                <button
+                  className={
+                    _type == "tarix"
+                      ? "flex-1/3 p-3 rounded-[10px] font-semibold cursor-pointer transition-all duration-300 ease bg-transparent text-white bg-gradient-to-br from-[#4facfe] to-[#00f2fe]"
+                      : "flex-1/3 p-3 rounded-[10px] font-semibold cursor-pointer transition-all duration-300 ease bg-transparent text-[#7f8c8d]"
+                  }
+                  onClick={() => {
+                    _setType("tarix");
+                  }}
+                >
+                  Tarix
+                </button>
+                <button
+                  className={
+                    _type == "hammasi"
+                      ? "flex-1/3 p-3 rounded-[10px] font-semibold cursor-pointer transition-all duration-300 ease bg-transparent text-white bg-gradient-to-br from-[#4facfe] to-[#00f2fe]"
+                      : "flex-1/3 p-3 rounded-[10px] font-semibold cursor-pointer transition-all duration-300 ease bg-transparent text-[#7f8c8d]"
+                  }
+                  onClick={() => {
+                    _setType("hammasi");
+                  }}
+                >
+                  Hammasi
+                </button>
+              </div>
+            </div>
+
+            <ul className="trades-container align-elements pb-25">
+              <li>
+                <NavLink
+                  to="/savdolar/new"
+                  className="w-full bg-white text-xl text-gray-500 font-semibold flex items-center justify-center cursor-pointer p-3 mb-5 rounded-2xl shadow-md bg-gradient-to-br from-[#04ebd8] to-[#00ff8c]"
+                >
+                  Yangi savdo ochish
+                </NavLink>
+              </li>
+              {_type == "faol" ? (
+                data && data.length > 0 ? (
+                  data.map((item) =>
+                    item.holat === "faol" ? (
+                      item.status === "oluvchi" ? (
+                        <Sotuvchi key={item.id} data={item} setView={setView} />
+                      ) : (
+                        <Oluvchi key={item.id} data={item} setView={setView} />
+                      )
+                    ) : (
+                      ""
+                    )
+                  )
+                ) : (
+                  <li className="text-2xl text-black trades-container:h-dvh">
+                    hech narsa yo'q
+                  </li>
+                )
+              ) : (
+                ""
+              )}
+
+              {_type == "tarix" ? (
+                data && data.length > 0 ? (
+                  data.map((item) =>
+                    item.holat == "bekor qilingan" ||
+                    item.holat == "yakunlangan" ? (
+                      item.status === "oluvchi" ? (
+                        <Sotuvchi key={item.id} data={item} setView={setView} />
+                      ) : (
+                        <Oluvchi key={item.id} data={item} setView={setView} />
+                      )
+                    ) : (
+                      ""
+                    )
+                  )
+                ) : (
+                  <li className="text-2xl text-black trades-container:h-dvh">
+                    hech narsa yo'q
+                  </li>
+                )
+              ) : (
+                ""
+              )}
+
+              {_type == "hammasi" ? (
+                data && data.length > 0 ? (
+                  data.map((item) =>
+                    item.status === "oluvchi" ? (
+                      <Sotuvchi key={item.id} data={item} setView={setView} />
+                    ) : (
+                      <Oluvchi key={item.id} data={item} setView={setView} />
+                    )
+                  )
+                ) : (
+                  <li className="text-2xl text-black trades-container:h-dvh">
+                    hech narsa yo'q
+                  </li>
+                )
+              ) : (
+                ""
+              )}
+            </ul>
+          </section>
+        </main>
       </>
     );
   }
-
-  const stats = {
-    faol: trades.trades.filter((t) =>
-      ["active", "in_progress"].includes(t.status)
-    ).length,
-    yakunlangan: trades.trades.filter((t) => t.status === "completed").length,
-    bekor: trades.trades.filter((t) => t.status === "cancelled").length,
-  };
-
-  const hasActiveFilters =
-    searchQuery ||
-    filters.status !== "all" ||
-    filters.tradeType !== "all" ||
-    filters.dateRange !== "all" ||
-    filters.amountRange.min ||
-    filters.amountRange.max;
-
-  return (
-    <>
-      <main className="bg-[#f8f9fa] min-h-screen">
-        <section className="max-w-7xl px-4 mx-auto">
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-4 py-5">
-            <div className="bg-white p-4 rounded-2xl text-center shadow-md">
-              <div className="text-xl font-bold text-[#2c3e50] mb-1">
-                {stats.faol}
-              </div>
-              <div className="text-xs text-[#7f8c8d]">Faol</div>
-            </div>
-            <div className="bg-white p-4 rounded-2xl text-center shadow-md">
-              <div className="text-xl font-bold text-[#2c3e50] mb-1">
-                {stats.yakunlangan}
-              </div>
-              <div className="text-xs text-[#7f8c8d]">Yakunlangan</div>
-            </div>
-            <div className="bg-white p-4 rounded-2xl text-center shadow-md">
-              <div className="text-xl font-bold text-[#2c3e50] mb-1">
-                {stats.bekor}
-              </div>
-              <div className="text-xs text-[#7f8c8d]">Bekor qilingan</div>
-            </div>
-          </div>
-
-          {/* Search and Filter */}
-          <div className="mb-5 space-y-3">
-            <SearchBar
-              placeholder="Savdolarni qidirish..."
-              onSearch={setSearchQuery}
-              onClear={handleClearSearch}
-            />
-            <div className="flex items-center justify-between">
-              <button
-                onClick={() => setShowFilterModal(true)}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-xl transition-all ${
-                  hasActiveFilters
-                    ? "bg-blue-500 text-white"
-                    : "bg-white text-gray-600 border border-gray-200"
-                }`}
-              >
-                <Filter className="w-4 h-4" />
-                <span className="text-sm font-medium">Filter</span>
-                {hasActiveFilters && (
-                  <span className="bg-white text-blue-500 text-xs px-2 py-1 rounded-full font-bold">
-                    •
-                  </span>
-                )}
-              </button>
-
-              <Link
-                to="/savdolar/new"
-                onClick={() => hapticFeedback("medium")}
-                className="flex items-center space-x-2 bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-xl font-semibold hover:from-green-600 hover:to-green-700 transition-all"
-              >
-                <Plus className="w-4 h-4" />
-                <span className="text-sm">Yangi</span>
-              </Link>
-            </div>
-          </div>
-
-          {/* Tabs */}
-          <div className="flex bg-white rounded-2xl shadow-md p-1 mb-5">
-            {["faol", "tarix", "hammasi"].map((tab) => (
-              <button
-                key={tab}
-                onClick={() => {
-                  setActiveTab(tab);
-                  hapticFeedback("selection");
-                }}
-                className={`flex-1 py-3 px-4 rounded-xl font-semibold text-sm transition-all ${
-                  activeTab === tab
-                    ? "bg-gradient-to-r from-[#4facfe] to-[#00f2fe] text-white"
-                    : "text-[#7f8c8d]"
-                }`}
-              >
-                {tab === "faol"
-                  ? "Faol"
-                  : tab === "tarix"
-                    ? "Tarix"
-                    : "Hammasi"}
-              </button>
-            ))}
-          </div>
-
-          {/* Results count */}
-          {hasActiveFilters && (
-            <div className="mb-4 text-sm text-gray-600">
-              {filteredTrades.length} ta savdo topildi
-              {searchQuery && ` "${searchQuery}" uchun`}
-            </div>
-          )}
-
-          {/* Trades List */}
-          <div className="space-y-4 pb-6">
-            {trades.loading ? (
-              <ListSkeleton items={5} type="trade" />
-            ) : filteredTrades.length === 0 ? (
-              <EmptyState
-                icon={hasActiveFilters ? "🔍" : "📝"}
-                title={
-                  hasActiveFilters ? "Hech narsa topilmadi" : "Savdolar yo'q"
-                }
-                description={
-                  hasActiveFilters
-                    ? "Qidiruv yoki filter shartlariga mos savdo topilmadi"
-                    : "Hali birorta savdo yaratilmagan"
-                }
-                actionText={
-                  hasActiveFilters
-                    ? "Filterni tozalash"
-                    : "Birinchi savdoni yarating"
-                }
-                actionLink={hasActiveFilters ? undefined : "/savdolar/new"}
-                onAction={
-                  hasActiveFilters
-                    ? () => {
-                        setFilters({
-                          status: "all",
-                          dateRange: "all",
-                          amountRange: { min: "", max: "" },
-                          tradeType: "all",
-                        });
-                        setSearchQuery("");
-                      }
-                    : undefined
-                }
-              />
-            ) : (
-              filteredTrades.map((trade) => (
-                <TradeCard key={trade.id} trade={trade} />
-              ))
-            )}
-          </div>
-        </section>
-      </main>
-
-      {/* Filter Modal */}
-      <FilterModal
-        isOpen={showFilterModal}
-        onClose={() => setShowFilterModal(false)}
-        onApply={handleApplyFilters}
-        filterType="trades"
-        initialFilters={filters}
-      />
-    </>
-  );
 };

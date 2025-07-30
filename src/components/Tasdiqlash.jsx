@@ -1,61 +1,148 @@
-// src/components/Tasdiqlash.jsx
 import React from "react";
-import { CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import { FormatNumber } from "./FormatNumber";
+import {
+  CheckCircle,
+  AlertTriangle,
+  X,
+  DollarSign,
+  User,
+  Percent,
+  Receipt,
+} from "lucide-react";
 
-export const Tasdiqlash = ({
-  isOpen,
-  onClose,
-  onConfirm,
-  title = "Tasdiqlash",
-  message = "Bu amalni bajarishni tasdiqlaysizmi?",
-  confirmText = "Tasdiqlash",
-  cancelText = "Bekor qilish",
-  type = "default", // default, warning, danger
-}) => {
-  if (!isOpen) return null;
-
-  const getIcon = () => {
-    switch (type) {
-      case "warning":
-        return <AlertTriangle className="w-16 h-16 text-yellow-500" />;
-      case "danger":
-        return <XCircle className="w-16 h-16 text-red-500" />;
-      default:
-        return <CheckCircle className="w-16 h-16 text-blue-500" />;
-    }
+export const Tasdiqlash = ({ setView, data }) => {
+  const tasdiqlashBTN = (e) => {
+    setView(null);
   };
-
-  const getColors = () => {
-    switch (type) {
-      case "warning":
-        return "from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700";
-      case "danger":
-        return "from-red-500 to-red-600 hover:from-red-600 hover:to-red-700";
-      default:
-        return "from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700";
-    }
-  };
-
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden transform transition-all duration-300 scale-100">
-        <div className="p-6 text-center">
-          <div className="mb-4">{getIcon()}</div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">{title}</h2>
-          <p className="text-gray-600 mb-6">{message}</p>
+    <div
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      onClick={() => setView(null)}
+    >
+      <div
+        className="bg-white rounded-3xl shadow-2xl w-full max-w-md mx-4 overflow-hidden transform transition-all duration-300 scale-100"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 relative">
+          <button
+            onClick={() => setView(null)}
+            className="absolute right-4 top-4 text-white/80 hover:text-white transition-colors cursor-pointer"
+          >
+            <X size={24} />
+          </button>
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+              <Receipt className="text-white" size={24} />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-white">Savdo Ma'lumoti</h2>
+              <p className="text-blue-100 text-sm">
+                {data.savdoName ? data.savdoName : "Tasdiqlash uchun"}
+              </p>
+            </div>
+          </div>
+        </div>
 
-          <div className="flex space-x-3">
+        {/* Content */}
+        <div className="p-6 space-y-6">
+          {/* Sale Information */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-green-100 rounded-xl border-l-4 border-green-500">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
+                  <DollarSign className="text-white" size={20} />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Savdo summasi</p>
+                  <p className="text-lg font-bold text-gray-900">
+                    {FormatNumber(data.value)} so'm
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl border-l-4 border-blue-500">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+                  <User className="text-white" size={20} />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Kim bilan</p>
+                  <p className="text-lg font-bold text-gray-900">
+                    {data.user_target}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 bg-gradient-to-r from-orange-50 to-orange-100 rounded-xl border-l-4 border-orange-500">
+                <div className="flex items-center gap-2 mb-2">
+                  <Percent className="text-orange-500" size={16} />
+                  <p className="text-sm text-gray-600">Komissiya</p>
+                </div>
+                <p className="text-lg font-bold text-gray-900">
+                  {data.komissiya == "men"
+                    ? "Siz tomoningizdan"
+                    : data.komissiya == "ortada"
+                    ? "Ortada"
+                    : data.status == "oluvchi"
+                    ? "Sotuvchi tomonidan"
+                    : "Oluvchi tomonidan"}
+                </p>
+              </div>
+
+              <div className="p-4 bg-gradient-to-r from-purple-50 to-purple-100 rounded-xl border-l-4 border-purple-500">
+                <div className="flex items-center gap-2 mb-2">
+                  <DollarSign className="text-purple-500" size={16} />
+                  <p className="text-sm text-gray-600">Komissiya summasi</p>
+                </div>
+                <p className="text-lg font-bold text-gray-900">
+                  {FormatNumber(data.komissiyaValue)} so'm
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Warning */}
+          <div className="bg-gradient-to-r from-amber-50 to-amber-100 border border-amber-200 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle
+                className="text-amber-500 mt-0.5 flex-shrink-0"
+                size={20}
+              />
+              <div>
+                <h3 className="font-semibold text-amber-800 mb-2">Eslatma:</h3>
+                <p className="text-sm text-amber-700 leading-relaxed">
+                  Bu savdoni tasdiqlash ortga qaytarib bo'lmaydi. Barcha
+                  ma'lumotlarni tekshirib, tasdiqlashga rozimisiz?
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Buttons */}
+          <div className="flex gap-3 pt-2">
             <button
-              onClick={onClose}
-              className="flex-1 py-3 px-4 bg-gray-200 text-gray-800 rounded-xl font-semibold hover:bg-gray-300 transition-colors"
+              className="flex-1 py-3 px-4 rounded-xl font-semibold text-sm transition-all duration-300 
+                           bg-gradient-to-r from-green-600 to-green-500 text-white 
+                           hover:from-green-700 hover:to-green-600 hover:shadow-lg hover:scale-105
+                           active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+              onClick={tasdiqlashBTN}
             >
-              {cancelText}
+              <CheckCircle size={18} />
+              Tasdiqlash
             </button>
             <button
-              onClick={onConfirm}
-              className={`flex-1 py-3 px-4 bg-gradient-to-r ${getColors()} text-white rounded-xl font-semibold transition-all`}
+              className="flex-1 py-3 px-4 rounded-xl font-semibold text-sm transition-all duration-300
+                           bg-gradient-to-r from-red-600 to-red-500 text-white 
+                           hover:from-red-700 hover:to-red-600 hover:shadow-lg hover:scale-105
+                           active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+              onClick={() => setView(false)}
             >
-              {confirmText}
+              <X size={18} />
+              Ortga qaytish
             </button>
           </div>
         </div>

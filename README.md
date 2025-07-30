@@ -1,41 +1,12 @@
-# Trade Lock - Xavfsiz Savdo Platformasi
+# React + Vite
 
-Trade Lock - bu Telegram Mini App sifatida ishlaydigan xavfsiz savdo platformasi. Foydalanuvchilar xavfsiz tarzda sotish va sotib olish operatsiyalarini amalga oshirishlari mumkin.
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
-## 🚀 Xususiyatlar
+Currently, two official plugins are available:
 
-### 💰 Moliya boshqaruvi
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
 
-- **Balans boshqaruvi**: Real vaqtda balansni kuzatish
-- **To'lov tizimlari**: Humo, Uzcard, Visa, Mastercard qo'llab-quvvatlash
-- **Xavfsiz to'lovlar**: SSL shifrlash bilan himoyalangan
-- **Balansni yashirish**: Maxfiylik uchun balans raqamlarini yashirish
+## Expanding the ESLint configuration
 
-### 🛍️ Savdo tizimi
-
-- **Yangi savdo yaratish**: Sotish/sotib olish uchun savdo yaratish
-- **Komissiya tizimi**: Moslashuvchan komissiya to'lash imkoniyati
-- **Savdo holati**: Real vaqtda savdo holatini kuzatish
-- **Xavfsiz tranzaksiyalar**: Ikki tomonlama tasdiqlash tizimi
-
-### 🔐 Xavfsizlik
-
-- **Ikki bosqichli autentifikatsiya**: Qo'shimcha xavfsizlik darajasi
-- **Shifrlangan ma'lumotlar**: Barcha ma'lumotlar shifrlangan
-- **Maxfiylik sozlamalari**: Foydalanuvchi maxfiyligini himoya qilish
-
-### 📱 Telegram integratsiyasi
-
-- **Mini App**: To'liq Telegram Mini App funksionalligi
-- **Haptic Feedback**: Tabiiy foydalanuvchi tajribasi
-- **Push bildirishnomalar**: Muhim hodisalar haqida xabar berish
-- **Inline ulashish**: Savdo havolalarini osongina ulashish
-
-## 🛠️ Texnologiyalar
-
-- **Frontend**: React 19, Vite 7
-- **Styling**: TailwindCSS 4, DaisyUI
-- **State Management**: React Context API, useReducer
-- **HTTP Client**: Native Fetch API
-- **Icons**: Lucide React, React Icons
-- **Routing**: React Router DOM 7
+If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.

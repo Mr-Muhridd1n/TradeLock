@@ -1,538 +1,637 @@
-// src/pages/Sozlamalar.jsx
-import React, { useState } from "react";
-import { useAppContext } from "../context/AppContext";
-import {
-  hapticFeedback,
-  showConfirm,
-  openExternalLink,
-} from "../utils/telegram";
-import {
-  Eye,
-  EyeOff,
-  Moon,
-  Sun,
-  Bell,
-  BellOff,
-  Shield,
-  Lock,
-  CreditCard,
-  HelpCircle,
-  LogOut,
-  User,
-  Mail,
-  Phone,
-  Save,
-  Edit,
-  X,
-  Check,
-  Plus,
-  Trash2,
-} from "lucide-react";
+import React from "react";
+import { Header } from "../components/Header";
+import { useMainGlobalContext } from "../hooks/useMainGlobalContext";
 
 export const Sozlamalar = () => {
-  const { user, handleError, showSuccess } = useAppContext();
-  const [isEditing, setIsEditing] = useState(false);
-  const [profileData, setProfileData] = useState({
-    first_name: user.user?.first_name || "",
-    last_name: user.user?.last_name || "",
-    email: user.user?.email || "",
-    phone: user.user?.phone || "",
-  });
-
-  const settings = user.user?.settings || {};
-
-  const handleToggleSetting = async (key, value) => {
-    try {
-      await user.updateSettings({ [key]: value });
-      hapticFeedback("light");
-    } catch (error) {
-      handleError(error);
-    }
-  };
-
-  const handleSaveProfile = async () => {
-    try {
-      await user.updateProfile(profileData);
-      setIsEditing(false);
-      showSuccess("Profil muvaffaqiyatli yangilandi");
-      hapticFeedback("success");
-    } catch (error) {
-      handleError(error);
-      hapticFeedback("error");
-    }
-  };
-
-  const handleLogout = () => {
-    showConfirm("Hisobdan chiqishni xohlaysizmi?", (confirmed) => {
-      if (confirmed) {
-        localStorage.clear();
-        window.location.reload();
-        hapticFeedback("medium");
-      }
-    });
-  };
-
-  if (!user.user) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
-
+  const { result, dispatch } = useMainGlobalContext();
   return (
     <>
-      <main className="bg-[#f8f9fa] min-h-screen">
-        <section className="max-w-7xl px-4 mx-auto py-5 space-y-6">
-          {/* Profile Section */}
-          <div className="bg-white rounded-2xl shadow-md overflow-hidden">
-            <div className="bg-gradient-to-r from-blue-50 to-blue-100 px-6 py-4 border-l-4 border-blue-500">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center">
-                    <User className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-gray-800">
-                      Profil Ma'lumotlari
-                    </h2>
-                    <p className="text-blue-700 text-sm">
-                      Shaxsiy ma'lumotlaringiz
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setIsEditing(!isEditing)}
-                  className="p-2 hover:bg-blue-200 rounded-full transition-colors"
-                >
-                  {isEditing ? (
-                    <X className="w-5 h-5 text-blue-600" />
-                  ) : (
-                    <Edit className="w-5 h-5 text-blue-600" />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            <div className="p-6 space-y-4">
-              {isEditing ? (
-                <>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Ism
-                      </label>
-                      <input
-                        type="text"
-                        value={profileData.first_name}
-                        onChange={(e) =>
-                          setProfileData((prev) => ({
-                            ...prev,
-                            first_name: e.target.value,
-                          }))
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="Ismingiz"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Familiya
-                      </label>
-                      <input
-                        type="text"
-                        value={profileData.last_name}
-                        onChange={(e) =>
-                          setProfileData((prev) => ({
-                            ...prev,
-                            last_name: e.target.value,
-                          }))
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="Familiyangiz"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Email
-                    </label>
-                    <input
-                      type="email"
-                      value={profileData.email}
-                      onChange={(e) =>
-                        setProfileData((prev) => ({
-                          ...prev,
-                          email: e.target.value,
-                        }))
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="email@example.com"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Telefon
-                    </label>
-                    <input
-                      type="tel"
-                      value={profileData.phone}
-                      onChange={(e) =>
-                        setProfileData((prev) => ({
-                          ...prev,
-                          phone: e.target.value,
-                        }))
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="+998901234567"
-                    />
-                  </div>
-
-                  <button
-                    onClick={handleSaveProfile}
-                    className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-3 rounded-xl font-semibold hover:from-green-600 hover:to-green-700 transition-all flex items-center justify-center space-x-2"
-                  >
-                    <Save className="w-5 h-5" />
-                    <span>Saqlash</span>
-                  </button>
-                </>
+      <Header title={"sozlamalar"} />
+      {/* <!-- Profile Card --> */}
+      <div className="py-4 align-elements">
+        <div className="profile-card rounded-2xl p-6 text-black card-hover relative z-10">
+          <div className="flex items-center space-x-4">
+            <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+              {result.user.userImage ? (
+                <img src={result.user.userImage} alt={result.user.userName} />
               ) : (
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-3">
-                    <User className="w-5 h-5 text-gray-500" />
-                    <div>
-                      <p className="font-semibold">
-                        {user.user.first_name} {user.user.last_name}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        @{user.user.username || "username"}
-                      </p>
-                    </div>
-                  </div>
-                  {user.user.email && (
-                    <div className="flex items-center space-x-3">
-                      <Mail className="w-5 h-5 text-gray-500" />
-                      <p className="text-gray-700">{user.user.email}</p>
-                    </div>
-                  )}
-                  {user.user.phone && (
-                    <div className="flex items-center space-x-3">
-                      <Phone className="w-5 h-5 text-gray-500" />
-                      <p className="text-gray-700">{user.user.phone}</p>
-                    </div>
-                  )}
-                </div>
+                <svg
+                  className="w-8 h-8"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                  ></path>
+                </svg>
               )}
             </div>
-          </div>
-
-          {/* Privacy Settings */}
-          <div className="bg-white rounded-2xl shadow-md overflow-hidden">
-            <div className="bg-gradient-to-r from-purple-50 to-purple-100 px-6 py-4 border-l-4 border-purple-500">
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-purple-500 rounded-full flex items-center justify-center">
-                  <Shield className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-800">Maxfiylik</h2>
-                  <p className="text-purple-700 text-sm">
-                    Xavfsizlik sozlamalari
-                  </p>
-                </div>
+            <div className="flex-1 text-black">
+              <h2 className="text-xl font-bold">Sayfuddinov Muhriddin</h2>
+              <p className="text-sm opacity-80">@Sayfuddinov_M</p>
+              <div className="flex items-center space-x-2 mt-2">
+                <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                <span className="text-sm opacity-80">Tasdiqlangan</span>
               </div>
             </div>
-
-            <div className="p-6 space-y-4">
+            <button className="bg-white bg-opacity-20 hover:bg-opacity-30 transition-all duration-300 px-4 py-2 rounded-xl text-sm cursor-pointer">
+              Tahrirlash
+            </button>
+          </div>
+        </div>
+      </div>
+      {/* <!-- Settings Content --> */}
+      <div className="px-5 pb-20 align-elements">
+        {/* <!-- Account Settings --> */}
+        <div className="mb-6">
+          <h3 className="text-lg font-bold text-gray-800 mb-3">
+            Hisob sozlamalari
+          </h3>
+          <div className="space-y-3">
+            <div className="setting-item rounded-xl p-4 shadow-sm card-hover cursor-pointer">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  {settings.balance_hide ? (
-                    <EyeOff className="w-5 h-5 text-gray-500" />
-                  ) : (
-                    <Eye className="w-5 h-5 text-gray-500" />
-                  )}
+                  <div className="w-10 h-10 gradient-blue rounded-full flex items-center justify-center">
+                    <svg
+                      className="w-5 h-5 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                      ></path>
+                    </svg>
+                  </div>
                   <div>
-                    <p className="font-semibold text-gray-800">
-                      Balansni yashirish
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      Balans raqamlarini yashirish
-                    </p>
+                    <div className="font-semibold text-gray-800">
+                      Shaxsiy ma'lumotlar
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      Ism, telefon, email
+                    </div>
                   </div>
                 </div>
-                <button
-                  onClick={() =>
-                    handleToggleSetting("balance_hide", !settings.balance_hide)
-                  }
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    settings.balance_hide ? "bg-blue-500" : "bg-gray-300"
-                  }`}
+                <svg
+                  className="w-5 h-5 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
                 >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      settings.balance_hide ? "translate-x-6" : "translate-x-1"
-                    }`}
-                  />
-                </button>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M9 5l7 7-7 7"
+                  ></path>
+                </svg>
               </div>
+            </div>
 
+            <div className="setting-item rounded-xl p-4 shadow-sm card-hover cursor-pointer">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  {settings.theme === "dark" ? (
-                    <Moon className="w-5 h-5 text-gray-500" />
-                  ) : (
-                    <Sun className="w-5 h-5 text-gray-500" />
-                  )}
+                  <div className="w-10 h-10 gradient-green rounded-full flex items-center justify-center">
+                    <svg
+                      className="w-5 h-5 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                      ></path>
+                    </svg>
+                  </div>
                   <div>
-                    <p className="font-semibold text-gray-800">
-                      Qorong'u rejim
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      Interfeys rangini o'zgartirish
-                    </p>
+                    <div className="font-semibold text-gray-800">
+                      Xavfsizlik
+                    </div>
+                    <div className="text-sm text-gray-500">Parol, 2FA, PIN</div>
                   </div>
                 </div>
-                <button
-                  onClick={() =>
-                    handleToggleSetting(
-                      "theme",
-                      settings.theme === "dark" ? "light" : "dark"
-                    )
-                  }
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    settings.theme === "dark" ? "bg-blue-500" : "bg-gray-300"
-                  }`}
+                <svg
+                  className="w-5 h-5 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
                 >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      settings.theme === "dark"
-                        ? "translate-x-6"
-                        : "translate-x-1"
-                    }`}
-                  />
-                </button>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M9 5l7 7-7 7"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+
+            <div className="setting-item rounded-xl p-4 shadow-sm card-hover cursor-pointer">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 gradient-purple rounded-full flex items-center justify-center">
+                    <svg
+                      className="w-5 h-5 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                      ></path>
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-800">
+                      To'lov usullari
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      Kartalar, bank hisoblari
+                    </div>
+                  </div>
+                </div>
+                <svg
+                  className="w-5 h-5 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M9 5l7 7-7 7"
+                  ></path>
+                </svg>
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Notification Settings */}
-          <div className="bg-white rounded-2xl shadow-md overflow-hidden">
-            <div className="bg-gradient-to-r from-green-50 to-green-100 px-6 py-4 border-l-4 border-green-500">
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
-                  <Bell className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-800">
-                    Bildirishnomalar
-                  </h2>
-                  <p className="text-green-700 text-sm">
-                    Xabar olish sozlamalari
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-6 space-y-4">
+        {/* <!-- Notifications --> */}
+        <div className="mb-6">
+          <h3 className="text-lg font-bold text-gray-800 mb-3">
+            Bildirishnomalar
+          </h3>
+          <div className="space-y-3">
+            <div className="setting-item rounded-xl p-4 shadow-sm">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <Bell className="w-5 h-5 text-gray-500" />
+                  <div className="w-10 h-10 gradient-orange rounded-full flex items-center justify-center">
+                    <svg
+                      className="w-5 h-5 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M15 17h5l-5 5v-5z"
+                      ></path>
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M4 15v-3a4 4 0 014-4h9"
+                      ></path>
+                    </svg>
+                  </div>
                   <div>
-                    <p className="font-semibold text-gray-800">
+                    <div className="font-semibold text-gray-800">
                       Push bildirishnomalar
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      Muhim xabarlar uchun
-                    </p>
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      Yangi savdolar, xabarlar
+                    </div>
                   </div>
                 </div>
-                <button
-                  onClick={() =>
-                    handleToggleSetting(
-                      "push_notifications",
-                      !settings.push_notifications
-                    )
-                  }
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    settings.push_notifications !== false
+
+                <div
+                  className={`w-12 h-6 rounded-full cursor-pointer transition-colors ${
+                    result.user.setting.notification.app
                       ? "bg-blue-500"
                       : "bg-gray-300"
                   }`}
+                  onClick={() => {
+                    dispatch({
+                      type: "NOTIFICATION",
+                      payload: {
+                        app: result.user.setting.notification.app
+                          ? false
+                          : true,
+                      },
+                    });
+                  }}
                 >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      settings.push_notifications !== false
+                  <div
+                    className={`w-5 h-5 bg-white rounded-full mt-0.5 transition-transform ${
+                      result.user.setting.notification.app
                         ? "translate-x-6"
                         : "translate-x-1"
                     }`}
                   />
-                </button>
+                </div>
               </div>
+            </div>
 
+            <div className="setting-item rounded-xl p-4 shadow-sm">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <Mail className="w-5 h-5 text-gray-500" />
+                  <div className="w-10 h-10 gradient-green rounded-full flex items-center justify-center">
+                    <svg
+                      className="w-5 h-5 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                      ></path>
+                    </svg>
+                  </div>
                   <div>
-                    <p className="font-semibold text-gray-800">
+                    <div className="font-semibold text-gray-800">
                       Email bildirishnomalar
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      Savdo va to'lov uchun
-                    </p>
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      Haftalik hisobotlar
+                    </div>
                   </div>
                 </div>
-                <button
-                  onClick={() =>
-                    handleToggleSetting(
-                      "email_notifications",
-                      !settings.email_notifications
-                    )
-                  }
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    settings.email_notifications ? "bg-blue-500" : "bg-gray-300"
+                <div
+                  className={`w-12 h-6 rounded-full cursor-pointer transition-colors ${
+                    result.user.setting.notification.email
+                      ? "bg-blue-500"
+                      : "bg-gray-300"
                   }`}
+                  onClick={() => {
+                    dispatch({
+                      type: "NOTIFICATION",
+                      payload: {
+                        email: result.user.setting.notification.email
+                          ? false
+                          : true,
+                      },
+                    });
+                  }}
                 >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      settings.email_notifications
+                  <div
+                    className={`w-5 h-5 bg-white rounded-full mt-0.5 transition-transform ${
+                      result.user.setting.notification.email
                         ? "translate-x-6"
                         : "translate-x-1"
                     }`}
                   />
-                </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="setting-item rounded-xl p-4 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 gradient-blue rounded-full flex items-center justify-center">
+                    <svg
+                      className="w-5 h-5 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
+                      ></path>
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-800">
+                      SMS bildirishnomalar
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      Muhim xavfsizlik xabarlari
+                    </div>
+                  </div>
+                </div>
+                <div
+                  className={`w-12 h-6 rounded-full cursor-pointer transition-colors ${
+                    result.user.setting.notification.sms
+                      ? "bg-blue-500"
+                      : "bg-gray-300"
+                  }`}
+                  onClick={() => {
+                    dispatch({
+                      type: "NOTIFICATION",
+                      payload: {
+                        sms: result.user.setting.notification.sms
+                          ? false
+                          : true,
+                      },
+                    });
+                  }}
+                >
+                  <div
+                    className={`w-5 h-5 bg-white rounded-full mt-0.5 transition-transform ${
+                      result.user.setting.notification.sms
+                        ? "translate-x-6"
+                        : "translate-x-1"
+                    }`}
+                  />
+                </div>
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Security Section */}
-          <div className="bg-white rounded-2xl shadow-md overflow-hidden">
-            <div className="bg-gradient-to-r from-red-50 to-red-100 px-6 py-4 border-l-4 border-red-500">
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center">
-                  <Lock className="w-6 h-6 text-white" />
+        {/* <!-- General Settings --> */}
+        <div className="mb-6">
+          <h3 className="text-lg font-bold text-gray-800 mb-3">
+            Umumiy sozlamalar
+          </h3>
+          <div className="space-y-3">
+            <div className="setting-item rounded-xl p-4 shadow-sm card-hover cursor-pointer">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 gradient-green rounded-full flex items-center justify-center">
+                    <svg
+                      className="w-5 h-5 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"
+                      ></path>
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-800">Til</div>
+                    <div className="text-sm text-gray-500">O'zbek tili</div>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-800">
-                    Xavfsizlik
-                  </h2>
-                  <p className="text-red-700 text-sm">
-                    Hisobingizni himoya qiling
-                  </p>
+                <svg
+                  className="w-5 h-5 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M9 5l7 7-7 7"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+
+            <div className="setting-item rounded-xl p-4 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 gradient-purple rounded-full flex items-center justify-center">
+                    <svg
+                      className="w-5 h-5 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+                      ></path>
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-800">
+                      Tungi rejim
+                    </div>
+                    <div className="text-sm text-gray-500">Avto rejimda</div>
+                  </div>
+                </div>
+                <div
+                  className={`w-12 h-6 rounded-full cursor-pointer transition-colors ${
+                    result.user.setting.theme ? "bg-blue-500" : "bg-gray-300"
+                  }`}
+                  onClick={() => {
+                    dispatch({
+                      type: "THEME",
+                      payload: result.user.setting.theme ? false : true,
+                    });
+                  }}
+                >
+                  <div
+                    className={`w-5 h-5 bg-white rounded-full mt-0.5 transition-transform ${
+                      result.user.setting.theme
+                        ? "translate-x-6"
+                        : "translate-x-1"
+                    }`}
+                  />
                 </div>
               </div>
             </div>
 
-            <div className="p-6 space-y-4">
-              <button
-                onClick={() => hapticFeedback("light")}
-                className="w-full flex items-center justify-between p-4 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
-              >
+            <div className="setting-item rounded-xl p-4 shadow-sm card-hover cursor-pointer">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <Lock className="w-5 h-5 text-gray-500" />
-                  <div className="text-left">
-                    <p className="font-semibold text-gray-800">
-                      Parolni o'zgartirish
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      Yangi parol o'rnatish
-                    </p>
+                  <div className="w-10 h-10 gradient-orange rounded-full flex items-center justify-center">
+                    <svg
+                      className="w-5 h-5 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"
+                      ></path>
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-800">
+                      Do'stlarni taklif qilish
+                    </div>
+                    <div className="text-sm text-gray-500">Bonus oling</div>
                   </div>
                 </div>
-                <span className="text-gray-400">›</span>
-              </button>
-
-              <button
-                onClick={() => hapticFeedback("light")}
-                className="w-full flex items-center justify-between p-4 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex items-center space-x-3">
-                  <CreditCard className="w-5 h-5 text-gray-500" />
-                  <div className="text-left">
-                    <p className="font-semibold text-gray-800">
-                      Karta ma'lumotlari
-                    </p>
-                    <p className="text-sm text-gray-500">Saqlangan kartalar</p>
-                  </div>
-                </div>
-                <span className="text-gray-400">›</span>
-              </button>
+                <svg
+                  className="w-5 h-5 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M9 5l7 7-7 7"
+                  ></path>
+                </svg>
+              </div>
             </div>
           </div>
+        </div>
 
-          {/* Support Section */}
-          <div className="bg-white rounded-2xl shadow-md overflow-hidden">
-            <div className="bg-gradient-to-r from-orange-50 to-orange-100 px-6 py-4 border-l-4 border-orange-500">
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-orange-500 rounded-full flex items-center justify-center">
-                  <HelpCircle className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-800">Yordam</h2>
-                  <p className="text-orange-700 text-sm">
-                    Qo'llab-quvvatlash xizmati
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-6 space-y-4">
-              <button
-                onClick={() => {
-                  openExternalLink("https://t.me/TradeLock_support");
-                  hapticFeedback("light");
-                }}
-                className="w-full flex items-center justify-between p-4 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
-              >
+        {/* <!-- Support --> */}
+        <div className="mb-6">
+          <h3 className="text-lg font-bold text-gray-800 mb-3">
+            Yordam va qo'llab-quvvatlash
+          </h3>
+          <div className="space-y-3">
+            <div className="setting-item rounded-xl p-4 shadow-sm card-hover cursor-pointer">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <HelpCircle className="w-5 h-5 text-gray-500" />
-                  <div className="text-left">
-                    <p className="font-semibold text-gray-800">
+                  <div className="w-10 h-10 gradient-blue rounded-full flex items-center justify-center">
+                    <svg
+                      className="w-5 h-5 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      ></path>
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-800">
                       Yordam markazi
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      24/7 qo'llab-quvvatlash
-                    </p>
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      FAQ, qo'llanmalar
+                    </div>
                   </div>
                 </div>
-                <span className="text-gray-400">›</span>
-              </button>
+                <svg
+                  className="w-5 h-5 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M9 5l7 7-7 7"
+                  ></path>
+                </svg>
+              </div>
+            </div>
 
-              <button
-                onClick={() => {
-                  openExternalLink("https://t.me/TradeLock_news");
-                  hapticFeedback("light");
-                }}
-                className="w-full flex items-center justify-between p-4 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
-              >
+            <div className="setting-item rounded-xl p-4 shadow-sm card-hover cursor-pointer">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <Bell className="w-5 h-5 text-gray-500" />
-                  <div className="text-left">
-                    <p className="font-semibold text-gray-800">
-                      Yangiliklar kanali
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      So'nggi yangiliklarni bilib oling
-                    </p>
+                  <div className="w-10 h-10 gradient-green rounded-full flex items-center justify-center">
+                    <svg
+                      className="w-5 h-5 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"
+                      ></path>
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-800">
+                      Qo'llab-quvvatlash
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      24/7 chat yordam
+                    </div>
                   </div>
                 </div>
-                <span className="text-gray-400">›</span>
-              </button>
+                <svg
+                  className="w-5 h-5 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M9 5l7 7-7 7"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+
+            <div className="setting-item rounded-xl p-4 shadow-sm card-hover cursor-pointer">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 gradient-red rounded-full flex items-center justify-center">
+                    <svg
+                      className="w-5 h-5 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                      ></path>
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-800">Chiqish</div>
+                    <div className="text-sm text-gray-500">
+                      Hisobdan chiqish
+                    </div>
+                  </div>
+                </div>
+                <svg
+                  className="w-5 h-5 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M9 5l7 7-7 7"
+                  ></path>
+                </svg>
+              </div>
             </div>
           </div>
-
-          {/* Logout */}
-          <div className="pb-20">
-            <button
-              onClick={handleLogout}
-              className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-4 rounded-xl font-bold text-lg hover:from-red-600 hover:to-red-700 transition-all transform active:scale-95 flex items-center justify-center space-x-2"
-            >
-              <LogOut className="w-5 h-5" />
-              <span>Hisobdan chiqish</span>
-            </button>
-          </div>
-        </section>
-      </main>
+        </div>
+      </div>
+      ;
     </>
   );
 };

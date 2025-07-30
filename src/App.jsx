@@ -1,63 +1,28 @@
-// src/App.jsx - Yangilangan versiya
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { MainLayout } from "./layouts/MainLayout";
 import { Home } from "./pages/Home";
+import { Referal } from "./pages/Referal";
 import { Savdolar } from "./pages/Savdolar";
 import { Hamyon } from "./pages/Hamyon";
 import { Sozlamalar } from "./pages/Sozlamalar";
-import { JoinTrade } from "./pages/JoinTrade";
-import { LoadingScreen } from "./components/LoadingScreen";
-import { ErrorBoundary } from "./components/ErrorBoundary";
-import { NotificationContainer } from "./components/NotificationContainer";
 
 function App() {
   const routes = createBrowserRouter([
     {
       path: "/",
       element: <MainLayout />,
-      errorElement: <ErrorBoundary />,
       children: [
-        {
-          index: true,
-          element: <Home />,
-        },
-        {
-          path: "savdolar",
-          element: <Savdolar />,
-        },
-        {
-          path: "savdolar/:action",
-          element: <Savdolar />,
-        },
-        {
-          path: "hamyon",
-          element: <Hamyon />,
-        },
-        {
-          path: "hamyon/:action",
-          element: <Hamyon />,
-        },
-        {
-          path: "sozlamalar",
-          element: <Sozlamalar />,
-        },
-        {
-          path: "trade/:secretLink",
-          element: <JoinTrade />,
-        },
+        { index: true, element: <Home /> },
+        { path: "/savdolar", element: <Savdolar /> },
+        { path: "/savdolar/:yangi_savdo", element: <Savdolar /> },
+        { path: "/hamyon", element: <Hamyon /> },
+        { path: "/hamyon/:status", element: <Hamyon /> },
+        { path: "/referal/:id", element: <Referal /> },
+        { path: "/sozlamalar", element: <Sozlamalar /> },
       ],
     },
   ]);
-
-  return (
-    <ErrorBoundary>
-      <div className="app min-h-screen bg-gray-50">
-        <RouterProvider router={routes} />
-        <NotificationContainer />
-        <LoadingScreen />
-      </div>
-    </ErrorBoundary>
-  );
+  return <RouterProvider router={routes} />;
 }
 
 export default App;

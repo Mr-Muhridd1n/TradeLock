@@ -1,96 +1,172 @@
-// src/components/Sotuvchi.jsx
-import React from "react";
-import { formatCurrency, getTimeAgo } from "../utils/formatters";
-import { User, DollarSign, Clock, MessageCircle, Share2 } from "lucide-react";
+import { useState } from "react";
+import { FormatNumber } from "./FormatNumber";
+import { TimeAgo } from "./TimeAgo";
+import {
+  CheckCircle,
+  AlertTriangle,
+  X,
+  DollarSign,
+  User,
+  Percent,
+  Receipt,
+} from "lucide-react";
+import { Tasdiqlash } from "./Tasdiqlash";
+import { BekorQilish } from "./BekorQilish";
 
-export const Sotuvchi = ({ trade, onContact, onShare }) => {
-  if (!trade) return null;
+export const Sotuvchi = ({ data }) => {
+  const timeAgo = TimeAgo(data.time);
+  const numberFormat = FormatNumber(data.value);
+  const komissiya = FormatNumber(data.komissiyaValue);
+  const [view, setView] = useState(null);
+  const [view_b, setView_b] = useState(null);
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-bold text-gray-800">
-          Sotuvchi Ma'lumotlari
-        </h3>
-        {onShare && (
-          <button
-            onClick={() => onShare(trade)}
-            className="p-2 text-blue-500 hover:bg-blue-50 rounded-full transition-colors"
-          >
-            <Share2 className="w-5 h-5" />
-          </button>
-        )}
-      </div>
-
-      <div className="space-y-4">
-        {/* Seller Info */}
-        <div className="flex items-center space-x-4">
-          <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-            <User className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <p className="font-semibold text-gray-800">
-              {trade.creator_name || "Nomalum foydalanuvchi"}
-            </p>
-            <p className="text-sm text-gray-500">
-              @{trade.creator_username || "username"}
-            </p>
-          </div>
-        </div>
-
-        {/* Trade Details */}
-        <div className="bg-gray-50 rounded-xl p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <DollarSign className="w-4 h-4 text-green-500" />
-              <span className="text-sm text-gray-600">Savdo summasi:</span>
+    <>
+      {/* Faol  */}
+      {data.holat == "faol" && (
+        <li
+          key={data.id}
+          className="trade-item active bg-white mb-3.5 rounded-2xl p-5 shadow-md relative overflow-hidden before:absolute before:top-0 before:left-0 before:right-0 before:h-1"
+        >
+          <div className="trade-header flex justify-between items-center mb-3.5">
+            <div className="trade-id font-semibold text-[#2c3e50]">
+              #{data.id}
             </div>
-            <span className="font-bold text-green-600">
-              {formatCurrency(trade.amount)}
-            </span>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Clock className="w-4 h-4 text-gray-500" />
-              <span className="text-sm text-gray-600">Yaratilgan:</span>
+            <div className="trade-status py-1.5 px-3 text-xs font-semibold rounded-2xl active">
+              Faol
             </div>
-            <span className="text-sm text-gray-500">
-              {getTimeAgo(trade.created_at)}
-            </span>
           </div>
-        </div>
-
-        {/* Trade Name */}
-        <div>
-          <p className="text-sm text-gray-600 mb-1">Savdo nomi:</p>
-          <p className="font-semibold text-gray-800">{trade.trade_name}</p>
-        </div>
-
-        {/* Commission Info */}
-        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3">
-          <p className="text-sm text-yellow-800">
-            <span className="font-semibold">Komissiya:</span>{" "}
-            {trade.commission_type === "creator" && "Sotuvchi tomonidan"}
-            {trade.commission_type === "participant" && "Xaridor tomonidan"}
-            {trade.commission_type === "split" && "Ikkala tomon o'rtasida"} (
-            {formatCurrency(trade.commission_amount)})
-          </p>
-        </div>
-
-        {/* Action Buttons */}
-        {onContact && trade.creator_username && (
-          <div className="pt-2">
+          <div className="trade-info flex justify-between mb-[10px]">
+            <div className="trade-details flex-[1]">
+              <div className="trade-product text-[#2c3e50] text-base font-semibold mb-1">
+                {data.savdoName}
+              </div>
+              <div className="trade-participants text-xs text-[#7f8c8d] mb-1">
+                Sotuvchi: {data.user}
+              </div>
+              <div className="trade-time text-xs text-[#95a5a6]">{timeAgo}</div>
+            </div>
+            <div className="trade-amount text-right">
+              <div className="trade-price text-lg font-bold text-[#2c3e50] mb-1">
+                {numberFormat} UZS
+              </div>
+              <div className="trade-commission text-xs text-[#7f8c8d]">
+                Komissiya: {komissiya}
+              </div>
+            </div>
+          </div>
+          <div className="progress-bar">
+            <div className="progress-fill w-2/3"></div>
+          </div>
+          <div className="trade-actions flex gap-2.5 mt-3.5">
             <button
-              onClick={() => onContact(trade)}
-              className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 rounded-xl font-semibold hover:from-blue-600 hover:to-blue-700 transition-all flex items-center justify-center space-x-2"
+              className="btn flex-1 py-2.5 px-4 border-none rounded-lg font-semibold text-xs cursor-pointer transition-all duration-300 ease-in-out bg-gradient-to-br from-green-600 to-green-400 text-white"
+              onClick={() => {
+                setView(data.id);
+              }}
             >
-              <MessageCircle className="w-5 h-5" />
-              <span>Sotuvchi bilan bog'lanish</span>
+              Tasdiqlash
+            </button>
+            <button
+              className="btn flex-1 py-2.5 px-4 border-none rounded-lg font-semibold text-xs cursor-pointer transition-all duration-300 ease-in-out bg-gradient-to-br from-red-500 to-red-700 text-white"
+              onClick={() => {
+                setView_b(data.id);
+              }}
+            >
+              Bekor qilish
             </button>
           </div>
-        )}
-      </div>
-    </div>
+        </li>
+      )}
+
+      {/* Yakunlangan */}
+      {data.holat == "yakunlangan" && (
+        <li
+          key={data.id}
+          className="trade-item bg-white mb-3.5 rounded-2xl p-5 shadow-md relative overflow-hidden completed before:absolute before:top-0 before:left-0 before:right-0 before:h-1"
+        >
+          <div className="trade-header flex justify-between items-center mb-3.5">
+            <div className="trade-id font-semibold text-[#2c3e50]">
+              #{data.id}
+            </div>
+            <div className="trade-status py-1.5 px-3 text-xs font-semibold rounded-2xl completed">
+              Yakunlangan
+            </div>
+          </div>
+          <div className="trade-info flex justify-between mb-[10px]">
+            <div className="trade-details flex-[1]">
+              <div className="trade-product text-[#2c3e50] text-base font-semibold mb-1">
+                {data.savdoName}
+              </div>
+              <div className="trade-participants text-xs text-[#7f8c8d] mb-1">
+                Sotuvchi: {data.user}
+              </div>
+              <div className="trade-time text-xs text-[#95a5a6]">{timeAgo}</div>
+            </div>
+            <div className="trade-amount text-right">
+              <div className="trade-price text-lg font-bold text-[#2c3e50] mb-1">
+                {numberFormat} UZS
+              </div>
+              <div className="trade-commission text-xs text-[#7f8c8d]">
+                Komissiya: {komissiya}
+              </div>
+            </div>
+          </div>
+          <div className="trade-actions flex gap-2.5 mt-3.5">
+            {baho ? (
+              ""
+            ) : (
+              <button className="btn flex-1 py-2.5 px-4 border-none rounded-lg font-semibold text-xs cursor-pointer transition-all duration-300 ease-in-out bg-gradient-to-br from-blue-500 to-cyan-400 text-white">
+                Baho berish
+              </button>
+            )}
+          </div>
+        </li>
+      )}
+
+      {/* Bekor qilingan */}
+      {data.holat == "bekor qilingan" && (
+        <li
+          key={data.id}
+          className="trade-item bg-white mb-3.5 rounded-2xl p-5 shadow-md relative overflow-hidden cancelled before:absolute before:top-0 before:left-0 before:right-0 before:h-1"
+        >
+          <div className="trade-header flex justify-between items-center mb-3.5">
+            <div className="trade-id font-semibold text-[#2c3e50]">
+              #{data.id}
+            </div>
+            <div className="trade-status py-1.5 px-3 text-xs font-semibold rounded-2xl cancelled">
+              Bekor qilingan
+            </div>
+          </div>
+          <div className="trade-info flex justify-between mb-[10px]">
+            <div className="trade-details flex-[1]">
+              <div className="trade-product text-[#2c3e50] text-base font-semibold mb-1">
+                {data.savdoName}
+              </div>
+              <div className="trade-participants text-xs text-[#7f8c8d] mb-1">
+                Xaridor: {data.user}
+              </div>
+              <div className="trade-time text-xs text-[#95a5a6]">{timeAgo}</div>
+            </div>
+            <div className="trade-amount text-right">
+              <div className="trade-price text-lg font-bold text-[#2c3e50] mb-1">
+                {numberFormat} UZS
+              </div>
+              <div className="trade-commission text-xs text-[#7f8c8d]">
+                Komissiya: {komissiya}
+              </div>
+            </div>
+          </div>
+          <div className="trade-actions flex gap-2.5 mt-3.5">
+            <button className="btn flex-1 py-2.5 px-4 border-none rounded-lg font-semibold text-xs cursor-pointer transition-all duration-300 ease-in-out bg-gradient-to-br from-red-500 to-red-700 text-white">
+              Tafsilotlar
+            </button>
+          </div>
+        </li>
+      )}
+
+      {view && <Tasdiqlash setView={setView} data={data} />}
+      {view_b && <BekorQilish setView_b={setView_b} data={data} />}
+    </>
   );
 };
