@@ -24,16 +24,39 @@ export const useApi = () => {
           }),
         });
 
-        const data = await response.json();
-        console.log(data);
+        const result = await response.json();
+        console.log("Full API response:", result);
 
-        if (data.success) {
-          setToken(data.token);
-          localStorage.setItem("token", data.token);
-          setIsAuthenticated(true);
+        // PHP API response structure:
+        // {
+        //   "success": true,
+        //   "data": {
+        //     "success": true,
+        //     "token": "actual_token_here",
+        //     "user": {...}
+        //   }
+        // }
+
+        if (result.success && result.data) {
+          const { token, user, success } = result.data;
+
+          if (success && token) {
+            console.log("✅ Authentication successful");
+            console.log("Token preview:", token.substring(0, 30) + "...");
+            console.log("User:", user);
+
+            setToken(token);
+            localStorage.setItem("token", token);
+            localStorage.setItem("user", JSON.stringify(user));
+            setIsAuthenticated(true);
+          } else {
+            console.error("❌ Auth data invalid:", result.data);
+          }
+        } else {
+          console.error("❌ API error:", result.error || "Unknown error");
         }
       } catch (error) {
-        console.error("Auth error:", error);
+        console.error("Network error:", error);
       }
     };
 
