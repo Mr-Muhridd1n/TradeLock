@@ -290,7 +290,7 @@ export const NewSavdoForm = () => {
             <input
               type="text"
               value={savdoName}
-              placeholder="Masalan: iPhone 15 Pro Max"
+              placeholder="Masalan: Kanal savdosi"
               maxLength="25"
               className={`w-full p-4 border-2 rounded-xl bg-gray-50 transition-all duration-300 outline-none ${
                 errors.name
