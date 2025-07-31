@@ -3,7 +3,7 @@ import { showToast } from "../utils/toast";
 
 const API_BASE_URL =
   process.env.NODE_ENV === "production"
-    ? "https://your-domain.com/api"
+    ? "https://mr-muhridd1n.uz/api"
     : "http://localhost:8000/api";
 
 // Mock data uchun localStorage
