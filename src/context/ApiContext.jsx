@@ -3,6 +3,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../services/api";
 import { useTelegram } from "../hooks/useTelegram";
+import { showToast } from "../utils/toast";
 
 const ApiContext = createContext();
 
@@ -17,23 +18,45 @@ export const useApi = () => {
 export const ApiProvider = ({ children }) => {
   const queryClient = useQueryClient();
   const { user: telegramUser, isReady } = useTelegram();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(api.isAuthenticated());
+  const [authLoading, setAuthLoading] = useState(true);
 
   // Authentication
-  const { mutate: authenticate } = useMutation({
+  const { mutate: authenticate, isPending: authPending } = useMutation({
     mutationFn: (telegramData) => api.authenticateWithTelegram(telegramData),
     onSuccess: (data) => {
       if (data.success) {
         setIsAuthenticated(true);
-        queryClient.invalidateQueries(["user"]);
+        queryClient.invalidateQueries();
+        showToast.success("Muvaffaqiyatli tizimga kirdingiz");
       }
+    },
+    onError: (error) => {
+      console.error("Auth error:", error);
+      showToast.error("Tizimga kirishda xatolik");
+    },
+    onSettled: () => {
+      setAuthLoading(false);
     },
   });
 
   // Auto authenticate when Telegram is ready
   useEffect(() => {
-    if (isReady && telegramUser && !isAuthenticated) {
-      authenticate({ user: telegramUser });
+    if (isReady) {
+      if (telegramUser && !isAuthenticated) {
+        // Agar telegram user bor va authentifikatsiya qilinmagan bo'lsa
+        authenticate({
+          user: telegramUser,
+          hash: window.Telegram?.WebApp?.initData
+            ? new URLSearchParams(window.Telegram.WebApp.initData).get("hash")
+            : "demo_hash",
+        });
+      } else if (!telegramUser && !isAuthenticated) {
+        // Demo mode uchun
+        setAuthLoading(false);
+      } else {
+        setAuthLoading(false);
+      }
     }
   }, [isReady, telegramUser, isAuthenticated, authenticate]);
 
@@ -42,20 +65,23 @@ export const ApiProvider = ({ children }) => {
     queryKey: ["user"],
     queryFn: () => api.getUser(),
     enabled: isAuthenticated,
+    retry: 1,
   });
 
-  const { data: balanceData } = useQuery({
+  const { data: balanceData, isLoading: balanceLoading } = useQuery({
     queryKey: ["balance"],
     queryFn: () => api.getUserBalance(),
     enabled: isAuthenticated,
-    refetchInterval: 30000, // Refresh every 30 seconds
+    refetchInterval: 30000, // Har 30 soniyada yangilanadi
+    retry: 1,
   });
 
   // Trade queries
-  const { data: trades, isLoading: tradesLoading } = useQuery({
+  const { data: tradesData, isLoading: tradesLoading } = useQuery({
     queryKey: ["trades"],
     queryFn: () => api.getTrades(),
     enabled: isAuthenticated,
+    retry: 1,
   });
 
   // Trade mutations
@@ -93,16 +119,18 @@ export const ApiProvider = ({ children }) => {
   });
 
   // Transaction queries
-  const { data: transactions, isLoading: transactionsLoading } = useQuery({
+  const { data: transactionsData, isLoading: transactionsLoading } = useQuery({
     queryKey: ["transactions"],
     queryFn: () => api.getTransactions(),
     enabled: isAuthenticated,
+    retry: 1,
   });
 
   const { data: transactionStats } = useQuery({
     queryKey: ["transactionStats"],
     queryFn: () => api.getTransactionStats(),
     enabled: isAuthenticated,
+    retry: 1,
   });
 
   // Payment queries
@@ -110,6 +138,7 @@ export const ApiProvider = ({ children }) => {
     queryKey: ["paymentMethods"],
     queryFn: () => api.getPaymentMethods(),
     enabled: isAuthenticated,
+    retry: 1,
   });
 
   // Payment mutations
@@ -130,20 +159,30 @@ export const ApiProvider = ({ children }) => {
     },
   });
 
+  // Logout function
+  const logout = () => {
+    api.removeToken();
+    setIsAuthenticated(false);
+    queryClient.clear();
+    showToast.info("Tizimdan chiqdingiz");
+  };
+
   const value = {
     // State
     isAuthenticated,
-    user: userData?.user,
+    authLoading: authLoading || authPending,
+    user: userData,
     balance: balanceData?.balance || 0,
     frozenBalance: balanceData?.frozen_balance || 0,
     availableBalance: balanceData?.available_balance || 0,
-    trades: trades || [],
-    transactions: transactions || [],
+    trades: tradesData || [],
+    transactions: transactionsData || [],
     transactionStats: transactionStats || {},
     paymentMethods: paymentMethods || [],
 
     // Loading states
-    isLoading: userLoading || tradesLoading || transactionsLoading,
+    isLoading:
+      userLoading || tradesLoading || transactionsLoading || balanceLoading,
 
     // Mutations
     createTrade: createTradeMutation.mutate,
@@ -161,10 +200,18 @@ export const ApiProvider = ({ children }) => {
     isDepositing: depositMutation.isPending,
     isWithdrawing: withdrawMutation.isPending,
 
+    // Actions
+    logout,
+    authenticate,
+
     // Refresh functions
     refreshTrades: () => queryClient.invalidateQueries(["trades"]),
     refreshBalance: () => queryClient.invalidateQueries(["balance"]),
     refreshTransactions: () => queryClient.invalidateQueries(["transactions"]),
+    refreshAll: () => queryClient.invalidateQueries(),
+
+    // Admin functions
+    isAdmin: api.isAdmin(),
   };
 
   return <ApiContext.Provider value={value}>{children}</ApiContext.Provider>;

@@ -4,14 +4,14 @@ import { showToast } from "../utils/toast";
 const API_BASE_URL =
   process.env.NODE_ENV === "production"
     ? "https://your-domain.com/api"
-    : "http://localhost/api";
+    : "/api"; // Proxy orqali development da
 
 class ApiService {
   constructor() {
     this.token = localStorage.getItem("auth_token");
   }
 
-  // Token management
+  // Token boshqaruv
   setToken(token) {
     this.token = token;
     localStorage.setItem("auth_token", token);
@@ -20,9 +20,10 @@ class ApiService {
   removeToken() {
     this.token = null;
     localStorage.removeItem("auth_token");
+    localStorage.removeItem("user_role");
   }
 
-  // Base request method
+  // Asosiy request metodi
   async request(endpoint, options = {}) {
     const url = `${API_BASE_URL}${endpoint}`;
 
@@ -40,6 +41,13 @@ class ApiService {
 
     try {
       const response = await fetch(url, config);
+
+      if (response.status === 401) {
+        this.removeToken();
+        window.location.href = "/";
+        throw new Error("Avtorizatsiya talab qilinadi");
+      }
+
       const data = await response.json();
 
       if (!response.ok) {
@@ -63,6 +71,10 @@ class ApiService {
 
       if (response.success && response.token) {
         this.setToken(response.token);
+        // User role ni ham saqlash
+        if (response.user && response.user.role === "admin") {
+          localStorage.setItem("user_role", "admin");
+        }
       }
 
       return response;
@@ -91,6 +103,10 @@ class ApiService {
     return this.request(`/trade/${id}`);
   }
 
+  async getTradeBySecretCode(secretCode) {
+    return this.request(`/trade/by-code/${secretCode}`);
+  }
+
   async createTrade(tradeData) {
     try {
       const response = await this.request("/trade/create", {
@@ -104,7 +120,7 @@ class ApiService {
 
       return response;
     } catch (error) {
-      showToast.error("Savdo yaratishda xatolik");
+      showToast.error(error.message || "Savdo yaratishda xatolik");
       throw error;
     }
   }
@@ -122,7 +138,7 @@ class ApiService {
 
       return response;
     } catch (error) {
-      showToast.error("Savdoga qo'shilishda xatolik");
+      showToast.error(error.message || "Savdoga qo'shilishda xatolik");
       throw error;
     }
   }
@@ -140,7 +156,7 @@ class ApiService {
 
       return response;
     } catch (error) {
-      showToast.error("Savdoni yakunlashda xatolik");
+      showToast.error(error.message || "Savdoni yakunlashda xatolik");
       throw error;
     }
   }
@@ -158,7 +174,7 @@ class ApiService {
 
       return response;
     } catch (error) {
-      showToast.error("Savdoni bekor qilishda xatolik");
+      showToast.error(error.message || "Savdoni bekor qilishda xatolik");
       throw error;
     }
   }
@@ -194,7 +210,7 @@ class ApiService {
 
       return response;
     } catch (error) {
-      showToast.error("To'lov amalga oshirishda xatolik");
+      showToast.error(error.message || "To'lov amalga oshirishda xatolik");
       throw error;
     }
   }
@@ -215,7 +231,7 @@ class ApiService {
 
       return response;
     } catch (error) {
-      showToast.error("Pul yechishda xatolik");
+      showToast.error(error.message || "Pul yechishda xatolik");
       throw error;
     }
   }
@@ -233,7 +249,7 @@ class ApiService {
 
       return response;
     } catch (error) {
-      showToast.error("To'lov usulini qo'shishda xatolik");
+      showToast.error(error.message || "To'lov usulini qo'shishda xatolik");
       throw error;
     }
   }
@@ -257,17 +273,39 @@ class ApiService {
   }
 
   async updateUserStatus(userId, isActive) {
-    return this.request(`/admin/user/${userId}/status`, {
-      method: "PUT",
-      body: JSON.stringify({ is_active: isActive }),
-    });
+    try {
+      const response = await this.request(`/admin/user/${userId}/status`, {
+        method: "PUT",
+        body: JSON.stringify({ is_active: isActive }),
+      });
+
+      if (response.success) {
+        showToast.success("Foydalanuvchi holati yangilandi");
+      }
+
+      return response;
+    } catch (error) {
+      showToast.error(error.message || "Xatolik yuz berdi");
+      throw error;
+    }
   }
 
   async updateTradeStatus(tradeId, status) {
-    return this.request(`/admin/trade/${tradeId}/status`, {
-      method: "PUT",
-      body: JSON.stringify({ status }),
-    });
+    try {
+      const response = await this.request(`/admin/trade/${tradeId}/status`, {
+        method: "PUT",
+        body: JSON.stringify({ status }),
+      });
+
+      if (response.success) {
+        showToast.success("Savdo holati yangilandi");
+      }
+
+      return response;
+    } catch (error) {
+      showToast.error(error.message || "Xatolik yuz berdi");
+      throw error;
+    }
   }
 
   async getSystemSettings() {
@@ -275,10 +313,30 @@ class ApiService {
   }
 
   async updateSystemSettings(settings) {
-    return this.request("/admin/settings", {
-      method: "PUT",
-      body: JSON.stringify(settings),
-    });
+    try {
+      const response = await this.request("/admin/settings", {
+        method: "PUT",
+        body: JSON.stringify(settings),
+      });
+
+      if (response.success) {
+        showToast.success("Sozlamalar yangilandi");
+      }
+
+      return response;
+    } catch (error) {
+      showToast.error(error.message || "Sozlamalarni yangilashda xatolik");
+      throw error;
+    }
+  }
+
+  // Utility methods
+  isAuthenticated() {
+    return !!this.token;
+  }
+
+  isAdmin() {
+    return localStorage.getItem("user_role") === "admin";
   }
 }
 
