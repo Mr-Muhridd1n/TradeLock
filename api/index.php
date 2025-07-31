@@ -15,6 +15,7 @@ require_once './models/User.php';
 require_once './models/Trade.php';
 require_once './models/Transaction.php';
 require_once './models/Payment.php';
+require_once './models/BaseModel.php';
 
 // Error handler
 set_error_handler(function ($errno, $errstr, $errfile, $errline) {
