@@ -1,10 +1,7 @@
 // src/services/api.js
 import { showToast } from "../utils/toast";
 
-const API_BASE_URL =
-  process.env.NODE_ENV === "production"
-    ? "https://mr-muhridd1n.uz/api"
-    : "http://localhost:8000/api";
+const API_BASE_URL = "https://mr-muhridd1n.uz/api";
 
 // Mock data uchun localStorage
 const MOCK_DATA_KEY = "tradeLockMockData";
