@@ -40,11 +40,10 @@ export const ApiProvider = ({ children }) => {
     },
   });
 
-  // Auto authenticate when Telegram is ready
+  // Auto authenticate
   useEffect(() => {
     if (isReady) {
       if (telegramUser && !isAuthenticated) {
-        // Agar telegram user bor va authentifikatsiya qilinmagan bo'lsa
         authenticate({
           user: telegramUser,
           hash: window.Telegram?.WebApp?.initData
@@ -52,8 +51,16 @@ export const ApiProvider = ({ children }) => {
             : "demo_hash",
         });
       } else if (!telegramUser && !isAuthenticated) {
-        // Demo mode uchun
-        setAuthLoading(false);
+        // Demo mode
+        authenticate({
+          user: {
+            id: 1,
+            first_name: "Demo",
+            last_name: "User",
+            username: "demo",
+          },
+          hash: "demo_hash",
+        });
       } else {
         setAuthLoading(false);
       }
@@ -72,7 +79,7 @@ export const ApiProvider = ({ children }) => {
     queryKey: ["balance"],
     queryFn: () => api.getUserBalance(),
     enabled: isAuthenticated,
-    refetchInterval: 30000, // Har 30 soniyada yangilanadi
+    refetchInterval: 30000,
     retry: 1,
   });
 
@@ -90,6 +97,10 @@ export const ApiProvider = ({ children }) => {
     onSuccess: () => {
       queryClient.invalidateQueries(["trades"]);
       queryClient.invalidateQueries(["balance"]);
+      showToast.success("Savdo muvaffaqiyatli yaratildi");
+    },
+    onError: (error) => {
+      showToast.error(error.message);
     },
   });
 
@@ -98,6 +109,10 @@ export const ApiProvider = ({ children }) => {
     onSuccess: () => {
       queryClient.invalidateQueries(["trades"]);
       queryClient.invalidateQueries(["balance"]);
+      showToast.success("Savdoga muvaffaqiyatli qo'shildingiz");
+    },
+    onError: (error) => {
+      showToast.error(error.message);
     },
   });
 
@@ -107,6 +122,10 @@ export const ApiProvider = ({ children }) => {
       queryClient.invalidateQueries(["trades"]);
       queryClient.invalidateQueries(["balance"]);
       queryClient.invalidateQueries(["transactions"]);
+      showToast.success("Savdo muvaffaqiyatli yakunlandi");
+    },
+    onError: (error) => {
+      showToast.error(error.message);
     },
   });
 
@@ -115,6 +134,10 @@ export const ApiProvider = ({ children }) => {
     onSuccess: () => {
       queryClient.invalidateQueries(["trades"]);
       queryClient.invalidateQueries(["balance"]);
+      showToast.info("Savdo bekor qilindi");
+    },
+    onError: (error) => {
+      showToast.error(error.message);
     },
   });
 
@@ -148,6 +171,10 @@ export const ApiProvider = ({ children }) => {
     onSuccess: () => {
       queryClient.invalidateQueries(["balance"]);
       queryClient.invalidateQueries(["transactions"]);
+      showToast.success("To'lov muvaffaqiyatli amalga oshirildi");
+    },
+    onError: (error) => {
+      showToast.error(error.message);
     },
   });
 
@@ -156,6 +183,10 @@ export const ApiProvider = ({ children }) => {
     onSuccess: () => {
       queryClient.invalidateQueries(["balance"]);
       queryClient.invalidateQueries(["transactions"]);
+      showToast.success("Pul yechish so'rovi yuborildi");
+    },
+    onError: (error) => {
+      showToast.error(error.message);
     },
   });
 

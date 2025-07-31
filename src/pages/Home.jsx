@@ -1,11 +1,19 @@
-import React from "react";
+// src/pages/Home.jsx
+import React, { useState } from "react";
 import { Header } from "../components/Header";
 import { FormatNumber } from "../components/FormatNumber";
 import { useApi } from "../context/ApiContext";
 import { Link } from "react-router-dom";
-import { FaShop, FaUserLock, FaWeixin, FaWpforms } from "react-icons/fa6";
-import { FaRegListAlt } from "react-icons/fa";
-import { Wallet, TrendingUp, Shield, Users } from "lucide-react";
+import { FaUserLock, FaWeixin, FaWpforms, FaRegListAlt } from "react-icons/fa";
+import {
+  Wallet,
+  TrendingUp,
+  Shield,
+  Eye,
+  EyeOff,
+  Plus,
+  Minus,
+} from "lucide-react";
 
 export const Home = () => {
   const {
@@ -17,6 +25,8 @@ export const Home = () => {
     transactionStats,
     isLoading,
   } = useApi();
+
+  const [balanceHidden, setBalanceHidden] = useState(false);
 
   const activeTrades =
     trades?.filter((trade) => trade.status === "active")?.length || 0;
@@ -44,7 +54,7 @@ export const Home = () => {
       <Header title="home" />
       <main>
         <section className="bg-[#f8f9fa] py-5 align-elements mb-20">
-          {/* Balance Card with Real Data */}
+          {/* Balance Card */}
           <div className="bg-white mb-5 rounded-2xl p-6 shadow-md text-center relative overflow-hidden">
             <div className="absolute w-full left-0 right-0 top-1 h-1 bg-gradient-to-br from-[#4facfe] to-[#00f2fe]"></div>
 
@@ -60,24 +70,31 @@ export const Home = () => {
                   <p className="text-sm text-gray-600">Sizning balansingiz</p>
                 </div>
               </div>
+              <button
+                onClick={() => setBalanceHidden(!balanceHidden)}
+                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg"
+              >
+                {balanceHidden ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
             </div>
 
             <div className="text-[#7f8c8d] mb-4">Joriy Balans</div>
             <div className="text-3xl font-bold text-[#2c3e50] mt-2.5 mb-4">
-              {FormatNumber(balance)} UZS
+              {balanceHidden ? "••• •••" : FormatNumber(balance)} UZS
             </div>
 
             <div className="grid grid-cols-2 gap-4 mb-6">
               <div className="bg-green-50 rounded-lg p-3">
                 <div className="text-sm text-green-600 mb-1">Mavjud</div>
                 <div className="text-lg font-bold text-green-700">
-                  {FormatNumber(availableBalance)} UZS
+                  {balanceHidden ? "••• •••" : FormatNumber(availableBalance)}{" "}
+                  UZS
                 </div>
               </div>
               <div className="bg-orange-50 rounded-lg p-3">
                 <div className="text-sm text-orange-600 mb-1">Muzlatilgan</div>
                 <div className="text-lg font-bold text-orange-700">
-                  {FormatNumber(frozenBalance)} UZS
+                  {balanceHidden ? "••• •••" : FormatNumber(frozenBalance)} UZS
                 </div>
               </div>
             </div>
@@ -85,20 +102,22 @@ export const Home = () => {
             <div className="flex mt-5 gap-2.5">
               <Link
                 to="/hamyon/toldirish"
-                className="bg-gradient-to-br from-[#4facfe] to-[#00f2fe] text-white flex-1 p-3 border-none rounded-xl font-semibold cursor-pointer transition-all duration-300 ease"
+                className="bg-gradient-to-br from-[#4facfe] to-[#00f2fe] text-white flex-1 p-3 border-none rounded-xl font-semibold cursor-pointer transition-all duration-300 ease flex items-center justify-center gap-2"
               >
+                <Plus size={16} />
                 To'ldirish
               </Link>
               <Link
                 to="/hamyon/chiqarish"
-                className="bg-[#f8f9fa] text-[#495057] border-2 border-[#e9ecef] flex-1 p-3 rounded-xl font-semibold cursor-pointer transition-all duration-300 ease"
+                className="bg-[#f8f9fa] text-[#495057] border-2 border-[#e9ecef] flex-1 p-3 rounded-xl font-semibold cursor-pointer transition-all duration-300 ease flex items-center justify-center gap-2"
               >
+                <Minus size={16} />
                 Chiqarish
               </Link>
             </div>
           </div>
 
-          {/* Statistics with Real Data */}
+          {/* Statistics */}
           <div className="grid grid-cols-2 gap-3.5 mb-6">
             <div className="bg-white p-5 rounded-2xl text-center shadow-md">
               <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">

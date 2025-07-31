@@ -1,4 +1,5 @@
-// src/App.jsx - Yangilangan versiya
+// src/App.jsx
+import React from "react";
 import {
   createBrowserRouter,
   RouterProvider,
@@ -9,7 +10,6 @@ import { ApiProvider } from "./context/ApiContext";
 import { MainLayout } from "./layouts/MainLayout";
 import { AdminLayout } from "./layouts/AdminLayout";
 import { Home } from "./pages/Home";
-import { Referal } from "./pages/Referal";
 import { Savdolar } from "./pages/Savdolar";
 import { Hamyon } from "./pages/Hamyon";
 import { Sozlamalar } from "./pages/Sozlamalar";
@@ -18,13 +18,14 @@ import { AdminDashboard } from "./pages/admin/AdminDashboard";
 import { AdminUsers } from "./pages/admin/AdminUsers";
 import { AdminTrades } from "./pages/admin/AdminTrades";
 import { JoinTrade } from "./pages/JoinTrade";
-import { TradeDetails } from "./pages/TradeDetails";
+// import { TradeDetails } from "./pages/TradeDetails";
+import { Toaster } from "react-hot-toast";
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 2,
-      staleTime: 5 * 60 * 1000, // 5 minutes
+      staleTime: 5 * 60 * 1000,
     },
   },
 });
@@ -54,10 +55,9 @@ function App() {
         { index: true, element: <Home /> },
         { path: "/savdolar", element: <Savdolar /> },
         { path: "/savdolar/new", element: <NewSavdoForm /> },
-        { path: "/savdolar/:id", element: <TradeDetails /> },
+        // { path: "/savdolar/:id", element: <TradeDetails /> },
         { path: "/hamyon", element: <Hamyon /> },
         { path: "/hamyon/:status", element: <Hamyon /> },
-        { path: "/referal/:id", element: <Referal /> },
         { path: "/sozlamalar", element: <Sozlamalar /> },
         { path: "/join/:secretCode", element: <JoinTrade /> },
       ],
@@ -81,6 +81,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ApiProvider>
         <RouterProvider router={routes} />
+        <Toaster />
       </ApiProvider>
     </QueryClientProvider>
   );
