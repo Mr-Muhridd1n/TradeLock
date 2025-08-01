@@ -12,26 +12,11 @@ import {
   Clock,
   CheckCircle,
   XCircle,
+  Eye,
+  Calendar,
 } from "lucide-react";
 import api from "../../services/api";
 import { FormatNumber } from "../../components/FormatNumber";
-import {
-  LineChart,
-  Line,
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from "recharts";
 
 export const AdminDashboard = () => {
   const { data: stats, isLoading } = useQuery({
@@ -98,17 +83,20 @@ export const AdminDashboard = () => {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
         <p className="text-gray-600">Tizim statistikasi va tahlil</p>
       </div>
 
       {/* Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {statCards.map((stat, index) => (
-          <div key={index} className="bg-white rounded-xl shadow-sm p-6">
+          <div
+            key={index}
+            className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100"
+          >
             <div className="flex items-center justify-between mb-4">
               <div
-                className={`w-12 h-12 bg-${stat.color}-100 rounded-lg flex items-center justify-center`}
+                className={`w-12 h-12 bg-${stat.color}-100 rounded-xl flex items-center justify-center`}
               >
                 <stat.icon className={`w-6 h-6 text-${stat.color}-600`} />
               </div>
@@ -136,78 +124,178 @@ export const AdminDashboard = () => {
         ))}
       </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Revenue Chart */}
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            Daromad statistikasi
-          </h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={stats?.revenueData || []}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" />
-              <YAxis />
-              <Tooltip />
-              <Area
-                type="monotone"
-                dataKey="revenue"
-                stroke="#3B82F6"
-                fill="#3B82F6"
-                fillOpacity={0.3}
-              />
-              <Area
-                type="monotone"
-                dataKey="commission"
-                stroke="#10B981"
-                fill="#10B981"
-                fillOpacity={0.3}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Trade Status Pie Chart */}
-        <div className="bg-white rounded-xl shadow-sm p-6">
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Trade Status Distribution */}
+        <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
             Savdo holatlari
           </h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={pieChartData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }) =>
-                  `${name} ${(percent * 100).toFixed(0)}%`
-                }
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {pieChartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
+          <div className="space-y-4">
+            {pieChartData.map((item, index) => (
+              <div key={index} className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-4 h-4 rounded-full"
+                    style={{ backgroundColor: item.color }}
+                  ></div>
+                  <span className="text-sm text-gray-600">{item.name}</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-sm font-semibold text-gray-900">
+                    {item.value}
+                  </span>
+                  <div className="text-xs text-gray-500">
+                    {stats?.activeTrades +
+                      stats?.completedTrades +
+                      stats?.cancelledTrades >
+                    0
+                      ? Math.round(
+                          (item.value /
+                            (stats.activeTrades +
+                              stats.completedTrades +
+                              stats.cancelledTrades)) *
+                            100
+                        )
+                      : 0}
+                    %
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Quick Stats */}
+        <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            Tezkor statistika
+          </h3>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <TrendingUp className="w-4 h-4 text-blue-600" />
+                </div>
+                <span className="text-sm text-gray-600">
+                  Muvaffaqiyat ko'rsatkichi
+                </span>
+              </div>
+              <span className="text-sm font-semibold text-gray-900">
+                {stats?.completedTrades &&
+                stats?.completedTrades + stats?.cancelledTrades > 0
+                  ? Math.round(
+                      (stats.completedTrades /
+                        (stats.completedTrades + stats.cancelledTrades)) *
+                        100
+                    )
+                  : 0}
+                %
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                  <DollarSign className="w-4 h-4 text-green-600" />
+                </div>
+                <span className="text-sm text-gray-600">O'rtacha savdo</span>
+              </div>
+              <span className="text-sm font-semibold text-gray-900">
+                {stats?.totalVolume &&
+                stats?.completedTrades + stats?.activeTrades > 0
+                  ? FormatNumber(
+                      Math.round(
+                        stats.totalVolume /
+                          (stats.completedTrades + stats.activeTrades)
+                      )
+                    )
+                  : 0}{" "}
+                UZS
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <Percent className="w-4 h-4 text-purple-600" />
+                </div>
+                <span className="text-sm text-gray-600">
+                  Komissiya stavkasi
+                </span>
+              </div>
+              <span className="text-sm font-semibold text-gray-900">
+                {stats?.commissionRate || 2}%
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* System Status */}
+        <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            Tizim holati
+          </h3>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span className="text-sm text-gray-600">Server</span>
+              </div>
+              <span className="text-sm font-semibold text-green-600">
+                Ishlayapti
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span className="text-sm text-gray-600">Database</span>
+              </div>
+              <span className="text-sm font-semibold text-green-600">Faol</span>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                <span className="text-sm text-gray-600">Monitoring</span>
+              </div>
+              <span className="text-sm font-semibold text-yellow-600">
+                Kuzatuvda
+              </span>
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">
+                  Oxirgi yangilanish
+                </span>
+                <span className="text-sm font-semibold text-gray-900">
+                  {new Date().toLocaleTimeString("uz-UZ")}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Trades */}
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            So'nggi savdolar
-          </h3>
-          <div className="space-y-3">
-            {stats?.recentTrades?.map((trade) => (
+        <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-semibold text-gray-900">
+              So'nggi savdolar
+            </h3>
+            <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">
+              Barchasini ko'rish
+            </button>
+          </div>
+          <div className="space-y-4">
+            {stats?.recentTrades?.slice(0, 5).map((trade) => (
               <div
                 key={trade.id}
-                className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0"
+                className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0"
               >
                 <div className="flex items-center gap-3">
                   <div
@@ -229,7 +317,7 @@ export const AdminDashboard = () => {
                   </div>
                   <div>
                     <p className="font-medium text-gray-900">
-                      {trade.creator_name}
+                      {trade.creator_name || "Noma'lum"}
                     </p>
                     <p className="text-sm text-gray-600">
                       {FormatNumber(trade.amount)} UZS
@@ -238,7 +326,7 @@ export const AdminDashboard = () => {
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-gray-600">
-                    {new Date(trade.created_at).toLocaleTimeString()}
+                    {new Date(trade.created_at).toLocaleTimeString("uz-UZ")}
                   </p>
                   <p
                     className={`text-xs font-medium ${
@@ -257,20 +345,30 @@ export const AdminDashboard = () => {
                   </p>
                 </div>
               </div>
-            ))}
+            )) || (
+              <div className="text-center py-8 text-gray-500">
+                <Activity className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p>Hozircha savdolar yo'q</p>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Recent Users */}
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            Yangi foydalanuvchilar
-          </h3>
-          <div className="space-y-3">
-            {stats?.recentUsers?.map((user) => (
+        <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Yangi foydalanuvchilar
+            </h3>
+            <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">
+              Barchasini ko'rish
+            </button>
+          </div>
+          <div className="space-y-4">
+            {stats?.recentUsers?.slice(0, 5).map((user) => (
               <div
                 key={user.id}
-                className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0"
+                className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
@@ -289,7 +387,7 @@ export const AdminDashboard = () => {
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-gray-600">
-                    {new Date(user.created_at).toLocaleDateString()}
+                    {new Date(user.created_at).toLocaleDateString("uz-UZ")}
                   </p>
                   <p
                     className={`text-xs font-medium ${
@@ -300,41 +398,56 @@ export const AdminDashboard = () => {
                   </p>
                 </div>
               </div>
-            ))}
+            )) || (
+              <div className="text-center py-8 text-gray-500">
+                <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p>Hozircha foydalanuvchilar yo'q</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* System Status */}
-      <div className="bg-white rounded-xl shadow-sm p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          Tizim holati
+      {/* Performance Metrics */}
+      <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+        <h3 className="text-lg font-semibold text-gray-900 mb-6">
+          Ishlash ko'rsatkichlari
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="flex items-center gap-4">
-            <Activity className="w-8 h-8 text-green-600" />
-            <div>
-              <p className="text-sm text-gray-600">Server holati</p>
-              <p className="font-medium text-gray-900">Ishlayapti</p>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <Activity className="w-8 h-8 text-blue-600" />
             </div>
+            <p className="text-2xl font-bold text-gray-900">99.9%</p>
+            <p className="text-sm text-gray-600">Uptime</p>
           </div>
-          <div className="flex items-center gap-4">
-            <Clock className="w-8 h-8 text-blue-600" />
-            <div>
-              <p className="text-sm text-gray-600">Oxirgi yangilanish</p>
-              <p className="font-medium text-gray-900">
-                {new Date().toLocaleTimeString()}
-              </p>
+
+          <div className="text-center">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <TrendingUp className="w-8 h-8 text-green-600" />
             </div>
+            <p className="text-2xl font-bold text-gray-900">
+              {stats?.totalUsers || 0}
+            </p>
+            <p className="text-sm text-gray-600">Faol foydalanuvchilar</p>
           </div>
-          <div className="flex items-center gap-4">
-            <DollarSign className="w-8 h-8 text-purple-600" />
-            <div>
-              <p className="text-sm text-gray-600">Komissiya stavkasi</p>
-              <p className="font-medium text-gray-900">
-                {stats?.commissionRate || 2}%
-              </p>
+
+          <div className="text-center">
+            <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <DollarSign className="w-8 h-8 text-purple-600" />
             </div>
+            <p className="text-2xl font-bold text-gray-900">
+              {FormatNumber(stats?.totalVolume || 0)}
+            </p>
+            <p className="text-sm text-gray-600">UZS aylanma</p>
+          </div>
+
+          <div className="text-center">
+            <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <Clock className="w-8 h-8 text-orange-600" />
+            </div>
+            <p className="text-2xl font-bold text-gray-900">2.3s</p>
+            <p className="text-sm text-gray-600">O'rtacha javob vaqti</p>
           </div>
         </div>
       </div>

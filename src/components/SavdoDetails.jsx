@@ -1,4 +1,5 @@
-import { showToast } from "../utils/toast";
+// src/components/SavdoDetails.jsx
+import React from "react";
 import { FormatNumber } from "./FormatNumber";
 import { TimeAgo } from "./TimeAgo";
 import {
@@ -14,10 +15,12 @@ import {
   CheckCircle,
   AlertCircle,
   Copy,
+  Calendar,
 } from "lucide-react";
+import { showToast } from "../utils/toast";
 
 export const SavdoDetails = ({ setView, data }) => {
-  const timeAgo = TimeAgo(data.time);
+  const timeAgo = TimeAgo(data.created_at || data.time);
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -25,29 +28,55 @@ export const SavdoDetails = ({ setView, data }) => {
     });
   };
 
-  const getStatusColor = (holat) => {
-    switch (holat) {
-      case "faol":
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "active":
         return "from-blue-50 to-blue-100 border-blue-500 text-blue-700";
-      case "yakunlangan":
+      case "completed":
         return "from-green-50 to-green-100 border-green-500 text-green-700";
-      case "bekor qilingan":
+      case "cancelled":
         return "from-red-50 to-red-100 border-red-500 text-red-700";
       default:
         return "from-gray-50 to-gray-100 border-gray-500 text-gray-700";
     }
   };
 
-  const getStatusIcon = (holat) => {
-    switch (holat) {
-      case "faol":
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case "active":
         return <Clock className="w-5 h-5" />;
-      case "yakunlangan":
+      case "completed":
         return <CheckCircle className="w-5 h-5" />;
-      case "bekor qilingan":
+      case "cancelled":
         return <AlertCircle className="w-5 h-5" />;
       default:
         return <Clock className="w-5 h-5" />;
+    }
+  };
+
+  const getStatusText = (status) => {
+    switch (status) {
+      case "active":
+        return "Faol";
+      case "completed":
+        return "Yakunlangan";
+      case "cancelled":
+        return "Bekor qilingan";
+      default:
+        return status;
+    }
+  };
+
+  const getCommissionText = () => {
+    switch (data.commission_type) {
+      case "creator":
+        return "Yaratuvchi to'laydi";
+      case "partner":
+        return "Hamkor to'laydi";
+      case "split":
+        return "Ortada";
+      default:
+        return "Noma'lum";
     }
   };
 
@@ -75,7 +104,7 @@ export const SavdoDetails = ({ setView, data }) => {
             <div>
               <h2 className="text-xl font-bold text-white">Savdo #{data.id}</h2>
               <p className="text-blue-100 text-sm">
-                {data.savdoName || "Nomsiz savdo"}
+                {data.trade_name || data.savdoName || "Nomsiz savdo"}
               </p>
             </div>
           </div>
@@ -86,15 +115,20 @@ export const SavdoDetails = ({ setView, data }) => {
           {/* Status */}
           <div
             className={`p-4 bg-gradient-to-r ${getStatusColor(
-              data.holat
+              data.status || data.holat
             )} rounded-xl border-l-4 flex items-center gap-3`}
           >
-            {getStatusIcon(data.holat)}
+            {getStatusIcon(data.status || data.holat)}
             <div>
               <p className="font-semibold">Holat</p>
-              <p className="text-sm capitalize">{data.holat}</p>
+              <p className="text-sm capitalize">
+                {getStatusText(data.status || data.holat)}
+              </p>
             </div>
-            <div className="ml-auto text-sm">{timeAgo}</div>
+            <div className="ml-auto text-sm flex items-center gap-1">
+              <Calendar className="w-4 h-4" />
+              {timeAgo}
+            </div>
           </div>
 
           {/* Sale Information */}
@@ -107,12 +141,12 @@ export const SavdoDetails = ({ setView, data }) => {
                 <div>
                   <p className="text-sm text-gray-600">Savdo summasi</p>
                   <p className="text-lg font-bold text-gray-900">
-                    {FormatNumber(data.value)} so'm
+                    {FormatNumber(data.amount || data.value)} so'm
                   </p>
                 </div>
               </div>
               <button
-                onClick={() => copyToClipboard(data.value)}
+                onClick={() => copyToClipboard(data.amount || data.value)}
                 className="text-gray-400 hover:text-gray-600 cursor-pointer"
               >
                 <Copy size={16} />
@@ -126,19 +160,24 @@ export const SavdoDetails = ({ setView, data }) => {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">
-                    {data.status === "sotuvchi" ? "Xaridor" : "Sotuvchi"}
+                    {data.creator_role === "seller" ||
+                    data.status === "sotuvchi"
+                      ? "Xaridor"
+                      : "Sotuvchi"}
                   </p>
                   <p className="text-lg font-bold text-gray-900">
-                    {data.user_target || "Hali topilmadi"}
+                    {data.partner_name || data.user_target || "Hali topilmadi"}
                   </p>
                 </div>
               </div>
-              {data.user_target && (
+              {(data.partner_name || data.user_target) && (
                 <a
                   href={
-                    data.user_target.charAt(0) === "@"
-                      ? `https://t.me/${data.user_target.slice(1)}`
-                      : `tg://user?id=${data.user_target}`
+                    (data.partner_name || data.user_target).charAt(0) === "@"
+                      ? `https://t.me/${(
+                          data.partner_name || data.user_target
+                        ).slice(1)}`
+                      : `tg://user?id=${data.partner_name || data.user_target}`
                   }
                   target="_blank"
                   rel="noopener noreferrer"
@@ -156,13 +195,7 @@ export const SavdoDetails = ({ setView, data }) => {
                   <p className="text-sm text-gray-600">Komissiya</p>
                 </div>
                 <p className="text-sm font-bold text-gray-900">
-                  {data.komissiya === "men"
-                    ? "Siz to'laysiz"
-                    : data.komissiya === "ortada"
-                    ? "Ortada"
-                    : data.status === "oluvchi"
-                    ? "Sotuvchi to'laydi"
-                    : "Oluvchi to'laydi"}
+                  {getCommissionText()}
                 </p>
               </div>
 
@@ -172,7 +205,8 @@ export const SavdoDetails = ({ setView, data }) => {
                   <p className="text-sm text-gray-600">Komissiya</p>
                 </div>
                 <p className="text-sm font-bold text-gray-900">
-                  {FormatNumber(data.komissiyaValue)} so'm
+                  {FormatNumber(data.commission_amount || data.komissiyaValue)}{" "}
+                  so'm
                 </p>
               </div>
             </div>
@@ -190,15 +224,25 @@ export const SavdoDetails = ({ setView, data }) => {
               <div className="flex justify-between text-sm">
                 <span className="text-indigo-600">Siz:</span>
                 <span className="font-medium text-indigo-800 capitalize">
-                  {data.status}
+                  {data.creator_role || data.status}
                 </span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-indigo-600">Sizning navbatingiz:</span>
-                <span className="font-medium text-indigo-800">
-                  {data.navbat ? "Ha" : "Yo'q"}
-                </span>
-              </div>
+              {data.secret_code && (
+                <div className="flex justify-between text-sm items-center">
+                  <span className="text-indigo-600">Mahfiy kod:</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-medium text-indigo-800">
+                      {data.secret_code}
+                    </span>
+                    <button
+                      onClick={() => copyToClipboard(data.secret_code)}
+                      className="text-indigo-500 hover:text-indigo-700"
+                    >
+                      <Copy size={12} />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -216,29 +260,36 @@ export const SavdoDetails = ({ setView, data }) => {
               <div className="flex items-center gap-3">
                 <div
                   className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                    data.user_target ? "bg-green-500" : "bg-gray-300"
+                    data.partner_name || data.user_target
+                      ? "bg-green-500"
+                      : "bg-gray-300"
                   }`}
                 >
-                  {data.user_target ? (
+                  {data.partner_name || data.user_target ? (
                     <CheckCircle className="text-white" size={14} />
                   ) : (
                     <Clock className="text-gray-500" size={14} />
                   )}
                 </div>
                 <span className="text-sm text-gray-600">
-                  {data.status === "sotuvchi" ? "Xaridor" : "Sotuvchi"} topildi
+                  {data.creator_role === "seller" || data.status === "sotuvchi"
+                    ? "Xaridor"
+                    : "Sotuvchi"}{" "}
+                  topildi
                 </span>
               </div>
 
               <div className="flex items-center gap-3">
                 <div
                   className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                    data.holat === "yakunlangan"
+                    (data.status || data.holat) === "completed" ||
+                    (data.status || data.holat) === "yakunlangan"
                       ? "bg-green-500"
                       : "bg-gray-300"
                   }`}
                 >
-                  {data.holat === "yakunlangan" ? (
+                  {(data.status || data.holat) === "completed" ||
+                  (data.status || data.holat) === "yakunlangan" ? (
                     <CheckCircle className="text-white" size={14} />
                   ) : (
                     <Clock className="text-gray-500" size={14} />
@@ -251,26 +302,27 @@ export const SavdoDetails = ({ setView, data }) => {
 
           {/* Action Buttons */}
           <div className="flex gap-3 pt-2">
-            {data.holat === "faol" && data.user_target && (
-              <>
+            {(data.status || data.holat) === "active" &&
+              (data.partner_name || data.user_target) && (
                 <a
                   href={
-                    data.user_target.charAt(0) === "@"
-                      ? `https://t.me/${data.user_target.slice(1)}`
-                      : `tg://user?id=${data.user_target}`
+                    (data.partner_name || data.user_target).charAt(0) === "@"
+                      ? `https://t.me/${(
+                          data.partner_name || data.user_target
+                        ).slice(1)}`
+                      : `tg://user?id=${data.partner_name || data.user_target}`
                   }
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex-1 py-3 px-4 rounded-xl font-semibold text-sm transition-all duration-300 
-                             bg-gradient-to-r from-blue-600 to-blue-500 text-white 
-                             hover:from-blue-700 hover:to-blue-600 hover:shadow-lg hover:scale-105
-                             active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                           bg-gradient-to-r from-blue-600 to-blue-500 text-white 
+                           hover:from-blue-700 hover:to-blue-600 hover:shadow-lg hover:scale-105
+                           active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <MessageCircle size={18} />
                   Aloqa
                 </a>
-              </>
-            )}
+              )}
 
             <button
               className="flex-1 py-3 px-4 rounded-xl font-semibold text-sm transition-all duration-300

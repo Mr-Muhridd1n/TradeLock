@@ -1,14 +1,17 @@
+// src/components/TimeAgo.jsx
 import React from "react";
 
 export const TimeAgo = (dateString) => {
-  const formattedDate = dateString.replace(
-    /(\d{4})\.(\d{2})\.(\d{2}) (\d{2}):(\d{2})/,
-    "$1-$2-$3T$4:$5:00+05:00"
-  );
-  const past = new Date(formattedDate);
-  const now = new Date(); // Hozirgi vaqt (2025.07.07 10:02 +05)
+  const formattedDate = dateString.includes("T")
+    ? dateString
+    : dateString.replace(
+        /(\d{4})\.(\d{2})\.(\d{2}) (\d{2}):(\d{2})/,
+        "$1-$2-$3T$4:$5:00"
+      );
 
-  // Xato tekshirish
+  const past = new Date(formattedDate);
+  const now = new Date();
+
   if (isNaN(past)) return "Noto'g'ri vaqt formati";
 
   const diffInMs = now - past;
