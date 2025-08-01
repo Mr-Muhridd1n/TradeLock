@@ -1,27 +1,37 @@
+// src/services/api.js - To'liq tuzatilgan versiya
+
 const API_BASE_URL = "https://mr-muhridd1n.uz/api";
 
 class ApiService {
   constructor() {
     this.token = localStorage.getItem("auth_token");
-    // MUHIM: Mock data ni o'chirish
-    // this.useMockData = false; // Production uchun false
+    if (this.token) {
+      console.log(
+        "Token localStorage dan o'qildi:",
+        this.token.substring(0, 20) + "..."
+      );
+    } else {
+      console.log("LocalStorage da token topilmadi");
+    }
   }
 
   setToken(token) {
     this.token = token;
     localStorage.setItem("auth_token", token);
+    console.log("Token saqlandi:", token.substring(0, 20) + "...");
   }
 
   removeToken() {
     this.token = null;
     localStorage.removeItem("auth_token");
     localStorage.removeItem("user_role");
+    console.log("Token o'chirildi");
   }
 
   async request(endpoint, options = {}) {
     const url = `${API_BASE_URL}${endpoint}`;
 
-    console.log("API so'rov:", url); // Debug uchun
+    console.log("API so'rov:", url);
 
     const config = {
       ...options,
@@ -31,33 +41,44 @@ class ApiService {
       },
     };
 
+    // Token ni qo'shish
     if (this.token) {
       config.headers.Authorization = `Bearer ${this.token}`;
+      console.log(
+        "Authorization header qo'shildi:",
+        `Bearer ${this.token.substring(0, 20)}...`
+      );
+    } else {
+      console.log("Token topilmadi");
     }
 
     try {
       const response = await fetch(url, config);
 
-      console.log("API javob status:", response.status); // Debug uchun
+      console.log("API javob status:", response.status);
 
       // 401 Unauthorized
       if (response.status === 401) {
+        console.error("401 Unauthorized - token muammosi");
         this.removeToken();
-        window.location.href = "/";
-        throw new Error("Avtorizatsiya talab qilinadi");
+
+        // Agar auth endpoint bo'lmasa, error throw qilish
+        if (!endpoint.includes("/auth/")) {
+          throw new Error("Avtorizatsiya talab qilinadi");
+        }
       }
 
       // Server xatosi
       if (!response.ok) {
         const errorText = await response.text();
         console.error("API xatosi:", response.status, errorText);
-        throw new Error(`Server xatosi: ${response.status}`);
+        throw new Error(`Server xatosi: ${response.status} - ${errorText}`);
       }
 
       const contentType = response.headers.get("content-type");
       if (contentType && contentType.indexOf("application/json") !== -1) {
         const data = await response.json();
-        console.log("API javob:", data); // Debug uchun
+        console.log("API javob:", data);
         return data;
       } else {
         const text = await response.text();
@@ -78,13 +99,37 @@ class ApiService {
     }
   }
 
-  // Auth endpoints - BACKEND ga mos keltirilgan
+  // Token validate qilish method
+  async validateToken() {
+    if (!this.token) {
+      return false;
+    }
+
+    try {
+      await this.getUser();
+      return true;
+    } catch (error) {
+      console.error("Token validation failed:", error);
+      this.removeToken();
+      return false;
+    }
+  }
+
+  // Auth endpoints
   async authenticateWithTelegram(telegramData) {
     try {
-      return await this.request("/auth/telegram", {
+      const response = await this.request("/auth/telegram", {
         method: "POST",
         body: JSON.stringify(telegramData),
       });
+
+      if (response && response.success && response.token) {
+        this.setToken(response.token);
+        console.log("Authentication successful");
+        return response;
+      } else {
+        throw new Error(response?.error || "Authentication failed");
+      }
     } catch (error) {
       console.error("Auth xatosi:", error);
       throw new Error("Tizimga kirishda xatolik: " + error.message);
@@ -100,7 +145,7 @@ class ApiService {
     return this.request("/user/balance");
   }
 
-  // Trade endpoints - BACKEND endpoint lariga mos
+  // Trade endpoints
   async getTrades(status = null) {
     let endpoint = "/trade/list";
     if (status) {
@@ -180,6 +225,43 @@ class ApiService {
     });
   }
 
+  // Admin endpoints
+  async getAdminStats() {
+    return this.request("/admin/stats");
+  }
+
+  async getAdminUsers(page = 1, limit = 20) {
+    return this.request(`/admin/users?page=${page}&limit=${limit}`);
+  }
+
+  async getAdminTrades(page = 1, limit = 20, status = null) {
+    let endpoint = `/admin/trades?page=${page}&limit=${limit}`;
+    if (status) {
+      endpoint += `&status=${status}`;
+    }
+    return this.request(endpoint);
+  }
+
+  async updateUserStatus(userId, isActive) {
+    return this.request("/admin/user/status", {
+      method: "POST",
+      body: JSON.stringify({
+        user_id: userId,
+        is_active: isActive,
+      }),
+    });
+  }
+
+  async updateTradeStatus(tradeId, status) {
+    return this.request("/admin/trade/status", {
+      method: "POST",
+      body: JSON.stringify({
+        trade_id: tradeId,
+        status: status,
+      }),
+    });
+  }
+
   // Utility methods
   isAuthenticated() {
     return !!this.token;
@@ -198,65 +280,159 @@ class ApiService {
           "Content-Type": "application/json",
         },
       });
+      const data = await response.json();
+      console.log("API Health check:", data);
       return response.ok;
     } catch (error) {
       console.error("API status check failed:", error);
       return false;
     }
   }
+
+  // Debug methods
+  async debugAuth() {
+    console.log("=== AUTH DEBUG INFO ===");
+    console.log(
+      "Current token:",
+      this.token ? this.token.substring(0, 30) + "..." : "None"
+    );
+    console.log(
+      "LocalStorage token:",
+      localStorage.getItem("auth_token")
+        ? localStorage.getItem("auth_token").substring(0, 30) + "..."
+        : "None"
+    );
+    console.log("User role:", localStorage.getItem("user_role"));
+
+    if (this.token) {
+      try {
+        const user = await this.getUser();
+        console.log("Token is valid, user:", user);
+        return true;
+      } catch (error) {
+        console.log("Token is invalid:", error.message);
+        return false;
+      }
+    } else {
+      console.log("No token available");
+      return false;
+    }
+  }
+
+  // Logout method
+  logout() {
+    this.removeToken();
+    console.log("User logged out");
+  }
 }
 
 export default new ApiService();
 
 // ===========================================
+// DEBUGGING HELPERS
+// ===========================================
+
+// Browser console da ishlatish uchun
+if (typeof window !== "undefined") {
+  window.apiDebug = {
+    // Token ni tekshirish
+    checkToken: async () => {
+      const api = (await import("./api.js")).default;
+      return await api.debugAuth();
+    },
+
+    // API holatini tekshirish
+    checkHealth: async () => {
+      const api = (await import("./api.js")).default;
+      return await api.checkApiStatus();
+    },
+
+    // To'liq test
+    fullTest: async () => {
+      console.log("🚀 Starting full API test...");
+
+      const api = (await import("./api.js")).default;
+
+      // 1. Health check
+      console.log("1. Health check...");
+      const health = await api.checkApiStatus();
+      console.log("Health:", health);
+
+      // 2. Auth check
+      console.log("2. Auth check...");
+      const authValid = await api.debugAuth();
+      console.log("Auth valid:", authValid);
+
+      if (authValid) {
+        // 3. User data
+        console.log("3. Getting user data...");
+        try {
+          const user = await api.getUser();
+          console.log("User data:", user);
+        } catch (error) {
+          console.error("User data error:", error);
+        }
+
+        // 4. Balance
+        console.log("4. Getting balance...");
+        try {
+          const balance = await api.getUserBalance();
+          console.log("Balance:", balance);
+        } catch (error) {
+          console.error("Balance error:", error);
+        }
+
+        // 5. Trades
+        console.log("5. Getting trades...");
+        try {
+          const trades = await api.getTrades();
+          console.log("Trades:", trades);
+        } catch (error) {
+          console.error("Trades error:", error);
+        }
+      }
+
+      console.log("✅ Full test completed!");
+    },
+  };
+
+  // Global access
+  window.api = (async () => (await import("./api.js")).default)();
+}
 
 // ===========================================
-// 3. BACKEND BILAN ALOQA TEKSHIRUVI
-
-// Console da quyidagi kodlarni ishlatib backend holatini tekshiring:
-
-// Test 1: API mavjudligini tekshirish
-/*
-fetch('https://mr-muhridd1n.uz/api/health')
-  .then(res => res.json())
-  .then(data => console.log('API Health:', data))
-  .catch(err => console.error('API offline:', err))
-*/
-
-// Test 2: Auth endpointni tekshirish
-/*
-fetch('https://mr-muhridd1n.uz/api/auth/telegram', {
-  method: 'POST',
-  headers: {'Content-Type': 'application/json'},
-  body: JSON.stringify({
-    user: {id: 123, first_name: 'Test'},
-    hash: 'test_hash'
-  })
-})
-.then(res => res.json())
-.then(data => console.log('Auth test:', data))
-.catch(err => console.error('Auth error:', err))
-*/
-
+// EXAMPLE USAGE
 // ===========================================
-// BACKEND TALAB QILINADIGAN ENDPOINT LAR:
 
 /*
-MUHIM: Sizning backend API quyidagi endpoint larni qo'llab-quvvatlashi kerak:
+// Authentication
+const authData = {
+  user: {
+    id: 123456789,
+    first_name: "Test User",
+    username: "testuser"
+  },
+  hash: "demo_hash"
+};
 
-GET  /health                    - API status
-POST /auth/telegram            - Telegram orqali login
-GET  /user                     - User ma'lumotlari  
-GET  /user/balance            - User balansi
-GET  /trade/list              - Savdolar ro'yxati
-GET  /trade/code/{code}       - Mahfiy kod orqali savdo
-POST /trade/create            - Yangi savdo
-POST /trade/join              - Savdoga qo'shilish
-POST /trade/complete          - Savdoni yakunlash
-POST /trade/cancel            - Savdoni bekor qilish
-GET  /transaction             - Tranzaksiyalar
-POST /payment/deposit         - To'lov qilish
+api.authenticateWithTelegram(authData)
+  .then(result => console.log("Auth result:", result))
+  .catch(error => console.error("Auth error:", error));
 
-Har bir endpoint JWT token orqali himoyalangan bo'lishi kerak
-(Authorization: Bearer {token} header da)
+// Get user data
+api.getUser()
+  .then(user => console.log("User:", user))
+  .catch(error => console.error("User error:", error));
+
+// Create trade
+const tradeData = {
+  trade_name: "Test Trade",
+  amount: 10000,
+  creator_role: "seller",
+  commission_type: "creator"
+};
+
+api.createTrade(tradeData)
+  .then(result => console.log("Trade created:", result))
+  .catch(error => console.error("Trade error:", error));
 */
