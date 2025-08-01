@@ -22,9 +22,9 @@ export const NewSavdoForm = () => {
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
-    creator_role: "seller", // seller yoki buyer
+    creator_role: "seller",
     amount: "",
-    commission_type: "creator", // creator, partner, split
+    commission_type: "creator",
     trade_name: "",
   });
 
@@ -34,13 +34,12 @@ export const NewSavdoForm = () => {
 
   const MIN_TRADE_AMOUNT = 1000;
   const MAX_TRADE_AMOUNT = 50000000;
-  const COMMISSION_RATE = 0.02; // 2%
+  const COMMISSION_RATE = 0.02;
 
   const validateForm = () => {
     const newErrors = {};
 
-    // Amount validation
-    const amount = parseInt(formData.amount.replace(/\s/g, ""));
+    const amount = parseInt(formData.amount.replace(/\s/g, "")) || 0;
     if (!formData.amount || amount < MIN_TRADE_AMOUNT) {
       newErrors.amount = `Minimal savdo summasi ${FormatNumber(
         MIN_TRADE_AMOUNT
@@ -52,12 +51,10 @@ export const NewSavdoForm = () => {
       )} so'm`;
     }
 
-    // Trade name validation
     if (!formData.trade_name || formData.trade_name.length < 3) {
       newErrors.trade_name = "Savdo nomi kamida 3 ta belgi bo'lishi kerak";
     }
 
-    // Balance validation for buyers
     if (formData.creator_role === "buyer") {
       const requiredAmount = calculateRequiredAmount();
       if (availableBalance < requiredAmount) {
@@ -136,9 +133,14 @@ export const NewSavdoForm = () => {
         amount: parseInt(formData.amount.replace(/\s/g, "")),
       };
 
-      const result = await createTrade(tradeData);
+      const result = await new Promise((resolve, reject) => {
+        createTrade(tradeData, {
+          onSuccess: (data) => resolve(data),
+          onError: (error) => reject(error),
+        });
+      });
 
-      if (result.success) {
+      if (result?.success) {
         setCreatedTrade({
           id: result.trade_id,
           secret_code: result.secret_code,

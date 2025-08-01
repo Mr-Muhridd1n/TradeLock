@@ -1,6 +1,6 @@
 // src/pages/Savdolar.jsx
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Header } from "../components/Header";
 import { FormatNumber } from "../components/FormatNumber";
 import { TimeAgo } from "../components/TimeAgo";
@@ -15,19 +15,25 @@ import {
   Eye,
   Share2,
   MessageCircle,
-  ExternalLink,
   AlertTriangle,
   User,
   DollarSign,
 } from "lucide-react";
 
 export const Savdolar = () => {
-  const { trades, isLoading, completeTrade, cancelTrade } = useApi();
+  const {
+    trades,
+    isLoading,
+    completeTrade,
+    cancelTrade,
+    isCompletingTrade,
+    isCancelingTrade,
+  } = useApi();
+
   const [filterType, setFilterType] = useState("faol");
   const [selectedTrade, setSelectedTrade] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
   const [showShare, setShowShare] = useState(false);
-  const navigate = useNavigate();
 
   const getStatusIcon = (status) => {
     switch (status) {
@@ -55,19 +61,6 @@ export const Savdolar = () => {
     }
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "active":
-        return "text-blue-600 bg-blue-50";
-      case "completed":
-        return "text-green-600 bg-green-50";
-      case "cancelled":
-        return "text-red-600 bg-red-50";
-      default:
-        return "text-gray-600 bg-gray-50";
-    }
-  };
-
   const filteredTrades = trades.filter((trade) => {
     switch (filterType) {
       case "faol":
@@ -90,18 +83,22 @@ export const Savdolar = () => {
   ).length;
 
   const handleTradeComplete = async (tradeId) => {
-    try {
-      await completeTrade(tradeId);
-    } catch (error) {
-      console.error("Error completing trade:", error);
+    if (window.confirm("Rostdan ham bu savdoni yakunlamoqchimisiz?")) {
+      try {
+        await completeTrade(tradeId);
+      } catch (error) {
+        console.error("Error completing trade:", error);
+      }
     }
   };
 
   const handleTradeCancel = async (tradeId) => {
-    try {
-      await cancelTrade(tradeId);
-    } catch (error) {
-      console.error("Error cancelling trade:", error);
+    if (window.confirm("Rostdan ham bu savdoni bekor qilmoqchimisiz?")) {
+      try {
+        await cancelTrade(tradeId);
+      } catch (error) {
+        console.error("Error cancelling trade:", error);
+      }
     }
   };
 
@@ -111,7 +108,10 @@ export const Savdolar = () => {
   };
 
   const openShareModal = (trade) => {
-    setSelectedTrade(trade);
+    setSelectedTrade({
+      ...trade,
+      secretCode: trade.secret_code,
+    });
     setShowShare(true);
   };
 
@@ -227,6 +227,8 @@ export const Savdolar = () => {
                     onCancel={handleTradeCancel}
                     onDetails={openTradeDetails}
                     onShare={openShareModal}
+                    isCompletingTrade={isCompletingTrade}
+                    isCancelingTrade={isCancelingTrade}
                   />
                 ))}
               </div>
@@ -248,7 +250,15 @@ export const Savdolar = () => {
 };
 
 // Trade Card Component
-const TradeCard = ({ trade, onComplete, onCancel, onDetails, onShare }) => {
+const TradeCard = ({
+  trade,
+  onComplete,
+  onCancel,
+  onDetails,
+  onShare,
+  isCompletingTrade,
+  isCancelingTrade,
+}) => {
   const timeAgo = TimeAgo(trade.created_at);
 
   return (
@@ -351,9 +361,14 @@ const TradeCard = ({ trade, onComplete, onCancel, onDetails, onShare }) => {
             {trade.creator_role === "seller" && (
               <button
                 onClick={() => onComplete(trade.id)}
-                className="flex-1 py-2.5 px-4 rounded-lg font-semibold text-xs bg-gradient-to-br from-green-600 to-green-400 text-white hover:shadow-lg transition-all duration-300"
+                disabled={isCompletingTrade}
+                className="flex-1 py-2.5 px-4 rounded-lg font-semibold text-xs bg-gradient-to-br from-green-600 to-green-400 text-white hover:shadow-lg transition-all duration-300 disabled:opacity-50"
               >
-                <CheckCircle className="w-4 h-4 inline mr-1" />
+                {isCompletingTrade ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white inline mr-1"></div>
+                ) : (
+                  <CheckCircle className="w-4 h-4 inline mr-1" />
+                )}
                 Tasdiqlash
               </button>
             )}
@@ -376,9 +391,14 @@ const TradeCard = ({ trade, onComplete, onCancel, onDetails, onShare }) => {
         {trade.status === "active" && (
           <button
             onClick={() => onCancel(trade.id)}
-            className="py-2.5 px-4 rounded-lg font-semibold text-xs bg-gradient-to-br from-red-500 to-red-700 text-white hover:shadow-lg transition-all duration-300"
+            disabled={isCancelingTrade}
+            className="py-2.5 px-4 rounded-lg font-semibold text-xs bg-gradient-to-br from-red-500 to-red-700 text-white hover:shadow-lg transition-all duration-300 disabled:opacity-50"
           >
-            <XCircle className="w-4 h-4 inline mr-1" />
+            {isCancelingTrade ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white inline mr-1"></div>
+            ) : (
+              <XCircle className="w-4 h-4 inline mr-1" />
+            )}
             Bekor qilish
           </button>
         )}

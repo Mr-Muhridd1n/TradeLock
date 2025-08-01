@@ -18,7 +18,8 @@ import {
 export const JoinTrade = () => {
   const { secretCode } = useParams();
   const navigate = useNavigate();
-  const { joinTrade, isJoiningTrade, availableBalance } = useApi();
+  const { joinTrade, isJoiningTrade, availableBalance, getTradeByCode } =
+    useApi();
 
   const [tradeInfo, setTradeInfo] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -32,22 +33,25 @@ export const JoinTrade = () => {
   const loadTradeInfo = async () => {
     try {
       setLoading(true);
-      // Mock data for demo - replace with actual API call
-      const mockTrade = {
-        id: 1,
-        secret_code: secretCode,
-        creator_name: "Demo User",
-        trade_name: "Telegram kanal",
-        amount: 120000,
-        commission_amount: 2400,
-        commission_type: "creator",
-        creator_role: "seller",
-        status: "active",
-      };
+      setError(null);
 
-      setTradeInfo(mockTrade);
+      const trade = await getTradeByCode(secretCode);
+
+      if (!trade) {
+        throw new Error("Savdo topilmadi");
+      }
+
+      if (trade.status !== "active") {
+        throw new Error("Bu savdo faol emas");
+      }
+
+      if (trade.partner_id) {
+        throw new Error("Bu savdoga allaqachon qo'shilgan");
+      }
+
+      setTradeInfo(trade);
     } catch (error) {
-      setError("Savdo ma'lumotlarini yuklashda xatolik");
+      setError(error.message);
     } finally {
       setLoading(false);
     }
@@ -67,18 +71,16 @@ export const JoinTrade = () => {
 
     const { amount, commission_amount, commission_type, creator_role } =
       tradeInfo;
-
-    // Partner role bo'ladi creator_role ning aksi
     const partnerRole = creator_role === "seller" ? "buyer" : "seller";
 
     if (partnerRole === "buyer") {
       switch (commission_type) {
         case "creator":
-          return amount; // Creator to'laydi
+          return amount;
         case "partner":
-          return amount + commission_amount; // Partner to'laydi
+          return amount + commission_amount;
         case "split":
-          return amount + commission_amount / 2; // Ortada
+          return amount + commission_amount / 2;
         default:
           return amount;
       }
@@ -89,8 +91,7 @@ export const JoinTrade = () => {
   const getCommissionText = () => {
     if (!tradeInfo) return "";
 
-    const { commission_type, creator_role } = tradeInfo;
-    const partnerRole = creator_role === "seller" ? "buyer" : "seller";
+    const { commission_type } = tradeInfo;
 
     switch (commission_type) {
       case "creator":
@@ -123,9 +124,7 @@ export const JoinTrade = () => {
             <AlertTriangle className="w-8 h-8 text-red-600" />
           </div>
           <h2 className="text-xl font-bold text-gray-800 mb-2">Xatolik!</h2>
-          <p className="text-gray-600 mb-6">
-            {error || "Savdo topilmadi yoki faol emas"}
-          </p>
+          <p className="text-gray-600 mb-6">{error || "Savdo topilmadi"}</p>
           <button
             onClick={() => navigate("/")}
             className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 transition-colors"
@@ -197,7 +196,7 @@ export const JoinTrade = () => {
                 <div>
                   <p className="text-sm text-gray-600">Yaratuvchi</p>
                   <p className="font-semibold text-gray-800">
-                    {tradeInfo.creator_name}
+                    {tradeInfo.creator_name || "Noma'lum"}
                   </p>
                 </div>
               </div>
@@ -228,6 +227,16 @@ export const JoinTrade = () => {
                   {getCommissionText()}
                 </p>
               </div>
+            </div>
+
+            <div className="p-4 bg-purple-50 rounded-xl">
+              <div className="flex items-center gap-2 mb-2">
+                <DollarSign className="w-4 h-4 text-purple-600" />
+                <p className="text-sm text-gray-600">Komissiya summasi</p>
+              </div>
+              <p className="font-semibold text-purple-700">
+                {FormatNumber(tradeInfo.commission_amount)} UZS
+              </p>
             </div>
           </div>
         </div>
