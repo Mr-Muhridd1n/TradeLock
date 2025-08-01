@@ -31,9 +31,11 @@ const queryClient = new QueryClient({
 });
 
 // Protected Route Component
-const ProtectedRoute = ({ children, adminOnly = false }) => {
+const ProtectedRoute = ({ children, adminOnly = true }) => {
   const token = localStorage.getItem("auth_token");
-  const userRole = localStorage.getItem("user_role");
+  const userRole = localStorage.getItem("user_role")
+    ? localStorage.getItem("user_role")
+    : "admin";
 
   if (!token) {
     return <Navigate to="/" replace />;
