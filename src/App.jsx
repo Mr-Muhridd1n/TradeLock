@@ -18,7 +18,6 @@ import { AdminDashboard } from "./pages/admin/AdminDashboard";
 import { AdminUsers } from "./pages/admin/AdminUsers";
 import { AdminTrades } from "./pages/admin/AdminTrades";
 import { JoinTrade } from "./pages/JoinTrade";
-// import { TradeDetails } from "./pages/TradeDetails";
 import { Toaster } from "react-hot-toast";
 
 const queryClient = new QueryClient({
@@ -57,7 +56,6 @@ function App() {
         { index: true, element: <Home /> },
         { path: "/savdolar", element: <Savdolar /> },
         { path: "/savdolar/new", element: <NewSavdoForm /> },
-        // { path: "/savdolar/:id", element: <TradeDetails /> },
         { path: "/hamyon", element: <Hamyon /> },
         { path: "/hamyon/:status", element: <Hamyon /> },
         { path: "/sozlamalar", element: <Sozlamalar /> },
