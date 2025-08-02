@@ -1,9 +1,9 @@
 <?php
 // models/Trade.php
 
-require_once 'BaseModel.php';
-require_once 'User.php';
-require_once 'Transaction.php';
+require_once __DIR__ . '/BaseModel.php';
+require_once __DIR__ . '/User.php';
+require_once __DIR__ . '/Transaction.php';
 
 class Trade extends BaseModel
 {
@@ -36,17 +36,17 @@ class Trade extends BaseModel
             $secretCode = $this->generateSecretCode();
 
             // Komissiya hisoblash
-            $commissionAmount = $data['amount'] * COMMISSION_RATE;
+            $commissionAmount = floatval($data['amount']) * (COMMISSION_RATE / 100);
 
             // Savdo yaratish
             $sql = "INSERT INTO trades (secret_code, creator_id, trade_name, amount, commission_amount, 
-                    commission_type, creator_role, status) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, 'active')";
+                    commission_type, creator_role, status, created_at) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 'active', NOW())";
 
             $params = array(
                 $secretCode,
                 $data['creator_id'],
-                $data['trade_name'],
+                $this->sanitizeString($data['trade_name']),
                 $data['amount'],
                 $commissionAmount,
                 $data['commission_type'],
@@ -75,7 +75,7 @@ class Trade extends BaseModel
                     'user_id' => $data['creator_id'],
                     'trade_id' => $tradeId,
                     'type' => 'trade_hold',
-                    'amount' => $freezeAmount,
+                    'amount' => -$freezeAmount,
                     'description' => "Savdo #{$tradeId} uchun mablag' muzlatildi"
                 ));
             }
@@ -127,7 +127,7 @@ class Trade extends BaseModel
 
             // Partner balansini tekshirish
             if ($partnerRole === 'buyer') {
-                $commissionAmount = $trade['commission_amount'];
+                $commissionAmount = floatval($trade['commission_amount']);
                 $freezeAmount = $this->calculateFreezeAmount(
                     $trade['amount'],
                     $commissionAmount,
@@ -151,13 +151,13 @@ class Trade extends BaseModel
                     'user_id' => $userId,
                     'trade_id' => $trade['id'],
                     'type' => 'trade_hold',
-                    'amount' => $freezeAmount,
+                    'amount' => -$freezeAmount,
                     'description' => "Savdo #{$trade['id']} uchun mablag' muzlatildi"
                 ));
             }
 
             // Savdoni yangilash
-            $sql = "UPDATE trades SET partner_id = ? WHERE id = ?";
+            $sql = "UPDATE trades SET partner_id = ?, updated_at = NOW() WHERE id = ?";
             $this->query($sql, array($userId, $trade['id']));
 
             // Audit log
@@ -204,9 +204,10 @@ class Trade extends BaseModel
             }
 
             $buyerId = $trade['creator_role'] === 'buyer' ? $trade['creator_id'] : $trade['partner_id'];
+            $tradeAmount = floatval($trade['amount']);
+            $commissionAmount = floatval($trade['commission_amount']);
 
             // Komissiyani hisoblash
-            $commissionAmount = $trade['commission_amount'];
             $sellerCommission = 0;
             $buyerCommission = 0;
 
@@ -232,15 +233,24 @@ class Trade extends BaseModel
             }
 
             // Oluvchidan muzlatilgan mablag'ni ochish
-            $buyerFreezeAmount = $trade['amount'] + $buyerCommission;
-            $this->userModel->unfreezeBalance($buyerId, $buyerFreezeAmount);
+            $buyerFreezeAmount = $tradeAmount + $buyerCommission;
+            $unfreezeResult = $this->userModel->unfreezeBalance($buyerId, $buyerFreezeAmount);
+            if (!$unfreezeResult['success']) {
+                throw new Exception("Mablag'ni ochishda xatolik: " . $unfreezeResult['error']);
+            }
 
             // Oluvchidan pul yechish
-            $this->userModel->updateBalance($buyerId, $buyerFreezeAmount, 'subtract');
+            $deductResult = $this->userModel->updateBalance($buyerId, $buyerFreezeAmount, 'subtract');
+            if (!$deductResult['success']) {
+                throw new Exception("Pul yechishda xatolik: " . $deductResult['error']);
+            }
 
             // Sotuvchiga pul o'tkazish
-            $sellerAmount = $trade['amount'] - $sellerCommission;
-            $this->userModel->updateBalance($sellerId, $sellerAmount, 'add');
+            $sellerAmount = $tradeAmount - $sellerCommission;
+            $addResult = $this->userModel->updateBalance($sellerId, $sellerAmount, 'add');
+            if (!$addResult['success']) {
+                throw new Exception("Pul o'tkazishda xatolik: " . $addResult['error']);
+            }
 
             // Tranzaksiyalar yozish
             // Oluvchi uchun
@@ -248,7 +258,7 @@ class Trade extends BaseModel
                 'user_id' => $buyerId,
                 'trade_id' => $tradeId,
                 'type' => 'trade_release',
-                'amount' => -$trade['amount'],
+                'amount' => -$tradeAmount,
                 'description' => "Savdo #{$tradeId} uchun to'lov"
             ));
 
@@ -267,7 +277,7 @@ class Trade extends BaseModel
                 'user_id' => $sellerId,
                 'trade_id' => $tradeId,
                 'type' => 'trade_release',
-                'amount' => $trade['amount'],
+                'amount' => $tradeAmount,
                 'description' => "Savdo #{$tradeId} dan tushum"
             ));
 
@@ -282,7 +292,7 @@ class Trade extends BaseModel
             }
 
             // Savdoni yakunlash
-            $sql = "UPDATE trades SET status = 'completed', completed_at = CURRENT_TIMESTAMP WHERE id = ?";
+            $sql = "UPDATE trades SET status = 'completed', completed_at = NOW(), updated_at = NOW() WHERE id = ?";
             $this->query($sql, array($tradeId));
 
             // Audit log
@@ -320,13 +330,16 @@ class Trade extends BaseModel
                 throw new Exception("Faqat savdo yaratuvchisi bekor qila oladi");
             }
 
+            $commissionAmount = floatval($trade['commission_amount']);
+            $tradeAmount = floatval($trade['amount']);
+
             // Agar partner qo'shilgan bo'lsa
             if ($trade['partner_id']) {
                 // Muzlatilgan mablag'larni qaytarish
                 if ($trade['creator_role'] === 'buyer') {
                     $creatorFreezeAmount = $this->calculateFreezeAmount(
-                        $trade['amount'],
-                        $trade['commission_amount'],
+                        $tradeAmount,
+                        $commissionAmount,
                         $trade['commission_type'],
                         'buyer'
                     );
@@ -338,8 +351,8 @@ class Trade extends BaseModel
 
                 if ($partnerRole === 'buyer') {
                     $partnerFreezeAmount = $this->calculateFreezeAmount(
-                        $trade['amount'],
-                        $trade['commission_amount'],
+                        $tradeAmount,
+                        $commissionAmount,
                         $trade['commission_type'],
                         'partner'
                     );
@@ -349,8 +362,8 @@ class Trade extends BaseModel
                 // Faqat yaratuvchi bor
                 if ($trade['creator_role'] === 'buyer') {
                     $creatorFreezeAmount = $this->calculateFreezeAmount(
-                        $trade['amount'],
-                        $trade['commission_amount'],
+                        $tradeAmount,
+                        $commissionAmount,
                         $trade['commission_type'],
                         'buyer'
                     );
@@ -359,7 +372,7 @@ class Trade extends BaseModel
             }
 
             // Savdoni bekor qilish
-            $sql = "UPDATE trades SET status = 'cancelled', cancelled_at = CURRENT_TIMESTAMP WHERE id = ?";
+            $sql = "UPDATE trades SET status = 'cancelled', cancelled_at = NOW(), updated_at = NOW() WHERE id = ?";
             $this->query($sql, array($tradeId));
 
             // Audit log
@@ -431,17 +444,15 @@ class Trade extends BaseModel
 
     private function validateTradeData($data)
     {
-        if (empty($data['trade_name']) || strlen($data['trade_name']) < 3) {
+        // Required fields validation
+        $this->validateRequired($data, array('trade_name', 'amount', 'commission_type', 'creator_role'));
+
+        if (strlen($data['trade_name']) < 3) {
             throw new Exception("Savdo nomi kamida 3 ta belgi bo'lishi kerak");
         }
 
-        if ($data['amount'] < MIN_TRADE_AMOUNT) {
-            throw new Exception("Minimal savdo summasi " . number_format(MIN_TRADE_AMOUNT, 2) . " so'm");
-        }
-
-        if ($data['amount'] > MAX_TRADE_AMOUNT) {
-            throw new Exception("Maksimal savdo summasi " . number_format(MAX_TRADE_AMOUNT, 2) . " so'm");
-        }
+        $amount = $this->validateNumeric($data['amount'], 'Amount', MIN_TRADE_AMOUNT, MAX_TRADE_AMOUNT);
+        $data['amount'] = $amount;
 
         if (!in_array($data['commission_type'], array('creator', 'partner', 'split'))) {
             throw new Exception("Noto'g'ri komissiya turi");
@@ -473,7 +484,7 @@ class Trade extends BaseModel
 
         // Agar oluvchi bo'lsa, kerakli summani hisoblash
         if ($tradeData['creator_role'] === 'buyer') {
-            $commissionAmount = $tradeData['amount'] * COMMISSION_RATE;
+            $commissionAmount = floatval($tradeData['amount']) * (COMMISSION_RATE / 100);
             $requiredAmount = $this->calculateFreezeAmount(
                 $tradeData['amount'],
                 $commissionAmount,
@@ -494,6 +505,9 @@ class Trade extends BaseModel
 
     private function calculateFreezeAmount($tradeAmount, $commissionAmount, $commissionType, $role)
     {
+        $tradeAmount = floatval($tradeAmount);
+        $commissionAmount = floatval($commissionAmount);
+
         if ($role === 'buyer') {
             switch ($commissionType) {
                 case 'creator':
