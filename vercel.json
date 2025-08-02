@@ -56,15 +56,5 @@
         }
       ]
     }
-  ],
-  "functions": {
-    "app/api/**/*.php": {
-      "runtime": "vercel-php@0.6.0"
-    }
-  },
-  "env": {
-    "VITE_API_BASE_URL": "https://mr-muhridd1n.uz/api",
-    "VITE_BOT_USERNAME": "Trade_Lock_bot",
-    "VITE_APP_URL": "https://trade-lock.vercel.app"
-  }
+  ]
 }

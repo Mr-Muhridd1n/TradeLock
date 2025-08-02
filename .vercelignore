@@ -1,0 +1,36 @@
+# .vercelignore - Vercel ga yuklanmaydigan fayllar
+
+# API fayllarini ignore qilish
+api/
+*.php
+
+# Development fayllar
+.env.local
+.env.development
+*.log
+
+# Node modules
+node_modules/
+
+# Cache fayllar
+.cache/
+.temp/
+
+# Editor fayllar
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS fayllar
+.DS_Store
+Thumbs.db
+
+# Database fayllar
+*.sql
+*.db
+*.sqlite
+
+# Backup fayllar
+*.bak
+*.backup
