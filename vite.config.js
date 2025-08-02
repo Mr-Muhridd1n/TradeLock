@@ -1,16 +1,10 @@
+// vite.config.js - Telegram WebApp uchun optimallashtirilgan
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-
-  // Telegram WebApp uchun optimallashtirishlar
-  define: {
-    // Global o'zgaruvchilarni aniqlash
-    __TELEGRAM_WEB_APP__: "window.Telegram?.WebApp",
-    __IS_TELEGRAM__: "!!window.Telegram?.WebApp",
-  },
 
   build: {
     // Telegram WebApp da kichikroq chunk'lar yaxshiroq ishlaydi
@@ -42,6 +36,6 @@ export default defineConfig({
     https: false,
   },
 
-  // PWA konfiguratsiyasi (ixtiyoriy)
-  // PWA Telegram WebApp da yaxshi ishlaydi
+  // Environment variables
+  envPrefix: "VITE_",
 });
