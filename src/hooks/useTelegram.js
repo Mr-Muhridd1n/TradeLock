@@ -12,99 +12,121 @@ export const useTelegram = () => {
     const telegram = window.Telegram?.WebApp;
 
     if (telegram) {
-      console.log("Telegram WebApp detected");
-      telegram.ready();
-      setTg(telegram);
-      setPlatform("telegram");
+      try {
+        console.log("Telegram WebApp detected");
+        telegram.ready();
+        setTg(telegram);
+        setPlatform("telegram");
 
-      // User ma'lumotlarini olish
-      const telegramUser = telegram.initDataUnsafe?.user;
-      if (telegramUser) {
-        setUser(telegramUser);
-        console.log("Telegram user:", telegramUser);
-      }
-
-      // Start parameter ni olish (savdo kodi uchun)
-      const param = telegram.initDataUnsafe?.start_param;
-      if (param) {
-        setStartParam(param);
-        console.log("Telegram start_param:", param);
-
-        // Start param dan savdo kodini ajratib olish
-        let tradeCode = null;
-        if (param.startsWith("savdo_")) {
-          tradeCode = param.replace("savdo_", "");
-        } else if (param.startsWith("trade_")) {
-          tradeCode = param.replace("trade_", "");
-        } else {
-          tradeCode = param;
+        // User ma'lumotlarini olish
+        const telegramUser = telegram.initDataUnsafe?.user;
+        if (telegramUser) {
+          setUser(telegramUser);
+          console.log("Telegram user:", telegramUser);
         }
 
-        if (tradeCode) {
-          console.log("Extracted trade code from start_param:", tradeCode);
-          // URL ni yangilash savdo sahifasiga yo'naltirish uchun
-          const currentPath = window.location.pathname;
-          if (
-            !currentPath.includes("/join/") &&
-            !currentPath.includes("/trade/")
-          ) {
-            window.history.replaceState(null, "", `/join/${tradeCode}`);
+        // Start parameter ni olish (savdo kodi uchun)
+        const param = telegram.initDataUnsafe?.start_param;
+        if (param) {
+          setStartParam(param);
+          console.log("Telegram start_param:", param);
+
+          // Start param dan savdo kodini ajratib olish
+          let tradeCode = null;
+          if (param.startsWith("savdo_")) {
+            tradeCode = param.replace("savdo_", "");
+          } else if (param.startsWith("trade_")) {
+            tradeCode = param.replace("trade_", "");
+          } else {
+            tradeCode = param;
           }
-        }
-      }
 
-      // Query string parametrlarini ham tekshirish (startapp uchun)
-      const urlParams = new URLSearchParams(window.location.search);
-
-      // 1. Oddiy startapp parametri
-      const queryParam = urlParams.get("startapp");
-      if (queryParam && queryParam.startsWith("savdo_")) {
-        const code = queryParam.replace("savdo_", "");
-        console.log("Trade code from startapp query:", code);
-        if (!window.location.pathname.includes("/join/")) {
-          window.history.replaceState(null, "", `/join/${code}`);
-        }
-      }
-
-      // 2. Telegram initData dan parametrlar olish
-      if (telegram.initData) {
-        try {
-          const initDataParams = new URLSearchParams(telegram.initData);
-
-          // start_param ni initData dan ham olish mumkin
-          const initStartParam = initDataParams.get("start_param");
-          if (initStartParam && !param) {
-            console.log("Found start_param in initData:", initStartParam);
-            setStartParam(initStartParam);
-
-            let tradeCode = null;
-            if (initStartParam.startsWith("savdo_")) {
-              tradeCode = initStartParam.replace("savdo_", "");
-            } else if (initStartParam.startsWith("trade_")) {
-              tradeCode = initStartParam.replace("trade_", "");
-            } else {
-              tradeCode = initStartParam;
-            }
-
-            if (tradeCode && !window.location.pathname.includes("/join/")) {
+          if (tradeCode) {
+            console.log("Extracted trade code from start_param:", tradeCode);
+            // URL ni yangilash savdo sahifasiga yo'naltirish uchun
+            const currentPath = window.location.pathname;
+            if (
+              !currentPath.includes("/join/") &&
+              !currentPath.includes("/trade/")
+            ) {
               window.history.replaceState(null, "", `/join/${tradeCode}`);
             }
           }
-        } catch (error) {
-          console.error("Error parsing initData:", error);
         }
+
+        // Query string parametrlarini ham tekshirish (startapp uchun)
+        const urlParams = new URLSearchParams(window.location.search);
+
+        // 1. Oddiy startapp parametri
+        const queryParam = urlParams.get("startapp");
+        if (queryParam && queryParam.startsWith("savdo_")) {
+          const code = queryParam.replace("savdo_", "");
+          console.log("Trade code from startapp query:", code);
+          if (!window.location.pathname.includes("/join/")) {
+            window.history.replaceState(null, "", `/join/${code}`);
+          }
+        }
+
+        // 2. Telegram initData dan parametrlar olish
+        if (telegram.initData) {
+          try {
+            const initDataParams = new URLSearchParams(telegram.initData);
+
+            // start_param ni initData dan ham olish mumkin
+            const initStartParam = initDataParams.get("start_param");
+            if (initStartParam && !param) {
+              console.log("Found start_param in initData:", initStartParam);
+              setStartParam(initStartParam);
+
+              let tradeCode = null;
+              if (initStartParam.startsWith("savdo_")) {
+                tradeCode = initStartParam.replace("savdo_", "");
+              } else if (initStartParam.startsWith("trade_")) {
+                tradeCode = initStartParam.replace("trade_", "");
+              } else {
+                tradeCode = initStartParam;
+              }
+
+              if (tradeCode && !window.location.pathname.includes("/join/")) {
+                window.history.replaceState(null, "", `/join/${tradeCode}`);
+              }
+            }
+          } catch (error) {
+            console.error("Error parsing initData:", error);
+          }
+        }
+
+        setIsReady(true);
+
+        // WebApp sozlamalarini xavfsiz o'rnatish
+        try {
+          telegram.expand();
+          telegram.setHeaderColor("#4facfe");
+          telegram.setBackgroundColor("#f8f9fa");
+
+          // Viewport ma'lumotlarini olish (set qilmaslik!)
+          const viewport = {
+            height: telegram.viewportHeight || window.innerHeight,
+            stableHeight: telegram.viewportStableHeight || window.innerHeight,
+            isExpanded: telegram.isExpanded || false,
+          };
+
+          console.log("Telegram viewport info:", viewport);
+        } catch (error) {
+          console.error("Error setting up Telegram WebApp:", error);
+        }
+      } catch (error) {
+        console.error("Error initializing Telegram WebApp:", error);
+        // Telegram WebApp xatosi bo'lsa, web mode ga o'tish
+        setPlatform("web");
+        setIsReady(true);
+        setUser({
+          id: 123456789,
+          first_name: "Demo",
+          last_name: "User",
+          username: "demo_user",
+        });
       }
-
-      setIsReady(true);
-
-      // WebApp sozlamalarini o'rnatish
-      telegram.expand();
-      telegram.setHeaderColor("#4facfe");
-      telegram.setBackgroundColor("#f8f9fa");
-
-      // Viewport ni sozlash
-      telegram.viewportHeight = window.innerHeight;
-      telegram.viewportStableHeight = window.innerHeight;
     } else {
       console.log("Telegram WebApp not detected, using web mode");
       setPlatform("web");
@@ -185,41 +207,69 @@ export const useTelegram = () => {
   const mainButton = {
     show: (text, callback) => {
       if (tg && tg.MainButton) {
-        tg.MainButton.text = text;
-        tg.MainButton.show();
-        if (callback) {
-          tg.MainButton.onClick(callback);
+        try {
+          tg.MainButton.text = text;
+          tg.MainButton.show();
+          if (callback) {
+            tg.MainButton.onClick(callback);
+          }
+        } catch (error) {
+          console.log("MainButton not available:", error);
         }
       }
     },
     hide: () => {
       if (tg && tg.MainButton) {
-        tg.MainButton.hide();
+        try {
+          tg.MainButton.hide();
+        } catch (error) {
+          console.log("MainButton not available:", error);
+        }
       }
     },
     setText: (text) => {
       if (tg && tg.MainButton) {
-        tg.MainButton.text = text;
+        try {
+          tg.MainButton.text = text;
+        } catch (error) {
+          console.log("MainButton not available:", error);
+        }
       }
     },
     setColor: (color) => {
       if (tg && tg.MainButton) {
-        tg.MainButton.color = color;
+        try {
+          tg.MainButton.color = color;
+        } catch (error) {
+          console.log("MainButton not available:", error);
+        }
       }
     },
     setTextColor: (color) => {
       if (tg && tg.MainButton) {
-        tg.MainButton.textColor = color;
+        try {
+          tg.MainButton.textColor = color;
+        } catch (error) {
+          console.log("MainButton not available:", error);
+        }
       }
     },
     enable: () => {
       if (tg && tg.MainButton) {
-        tg.MainButton.enable();
+        try {
+          tg.MainButton.enable();
+        } catch (error) {
+          console.log("MainButton not available:", error);
+        }
       }
     },
     disable: () => {
       if (tg && tg.MainButton) {
-        tg.MainButton.disable();
+        try {
+          tg.MainButton.disable();
+        } catch (error) {
+          console.log("MainButton not available:", error);
+        }
       }
     },
   };
@@ -227,15 +277,23 @@ export const useTelegram = () => {
   const backButton = {
     show: (callback) => {
       if (tg && tg.BackButton) {
-        tg.BackButton.show();
-        if (callback) {
-          tg.BackButton.onClick(callback);
+        try {
+          tg.BackButton.show();
+          if (callback) {
+            tg.BackButton.onClick(callback);
+          }
+        } catch (error) {
+          console.log("BackButton not available:", error);
         }
       }
     },
     hide: () => {
       if (tg && tg.BackButton) {
-        tg.BackButton.hide();
+        try {
+          tg.BackButton.hide();
+        } catch (error) {
+          console.log("BackButton not available:", error);
+        }
       }
     },
   };
@@ -293,9 +351,9 @@ export const useTelegram = () => {
   const getViewport = () => {
     if (tg) {
       return {
-        height: tg.viewportHeight,
-        stableHeight: tg.viewportStableHeight,
-        isExpanded: tg.isExpanded,
+        height: tg.viewportHeight || window.innerHeight,
+        stableHeight: tg.viewportStableHeight || window.innerHeight,
+        isExpanded: tg.isExpanded || false,
       };
     }
     return {
