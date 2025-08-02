@@ -1,4 +1,4 @@
-// src/App.jsx
+// src/App.jsx - Yaxshilangan router konfiguratsiyasi
 import React from "react";
 import {
   createBrowserRouter,
@@ -30,11 +30,9 @@ const queryClient = new QueryClient({
 });
 
 // Protected Route Component
-const ProtectedRoute = ({ children, adminOnly = true }) => {
+const ProtectedRoute = ({ children, adminOnly = false }) => {
   const token = localStorage.getItem("auth_token");
-  const userRole = localStorage.getItem("user_role")
-    ? localStorage.getItem("user_role")
-    : "admin";
+  const userRole = localStorage.getItem("user_role") || "user";
 
   if (!token) {
     return <Navigate to="/" replace />;
@@ -47,6 +45,11 @@ const ProtectedRoute = ({ children, adminOnly = true }) => {
   return children;
 };
 
+// Public Trade Join Component - URL parametrlarini qo'llab-quvvatlaydi
+const PublicJoinTrade = () => {
+  return <JoinTrade />;
+};
+
 function App() {
   const routes = createBrowserRouter([
     {
@@ -54,12 +57,21 @@ function App() {
       element: <MainLayout />,
       children: [
         { index: true, element: <Home /> },
-        { path: "/savdolar", element: <Savdolar /> },
-        { path: "/savdolar/new", element: <NewSavdoForm /> },
-        { path: "/hamyon", element: <Hamyon /> },
-        { path: "/hamyon/:status", element: <Hamyon /> },
-        { path: "/sozlamalar", element: <Sozlamalar /> },
-        { path: "/join/:secretCode", element: <JoinTrade /> },
+        { path: "savdolar", element: <Savdolar /> },
+        { path: "savdolar/new", element: <NewSavdoForm /> },
+        { path: "hamyon", element: <Hamyon /> },
+        { path: "hamyon/:status", element: <Hamyon /> },
+        { path: "sozlamalar", element: <Sozlamalar /> },
+
+        // Savdo join routelari - turli formatlarni qo'llab-quvvatlaydi
+        { path: "join/:secretCode", element: <PublicJoinTrade /> },
+        { path: "trade/:secretCode", element: <PublicJoinTrade /> },
+        { path: "savdo/:secretCode", element: <PublicJoinTrade /> },
+
+        // Query parameter bilan ham ishlaydi
+        { path: "join", element: <PublicJoinTrade /> },
+        { path: "trade", element: <PublicJoinTrade /> },
+        { path: "savdo", element: <PublicJoinTrade /> },
       ],
     },
     {
@@ -75,13 +87,58 @@ function App() {
         { path: "trades", element: <AdminTrades /> },
       ],
     },
+
+    // Fallback routes - eski formatlarni qo'llab-quvvatlash
+    {
+      path: "/start",
+      element: <PublicJoinTrade />,
+    },
+    {
+      path: "/t/:secretCode", // Telegram style short links
+      element: <PublicJoinTrade />,
+    },
   ]);
 
   return (
     <QueryClientProvider client={queryClient}>
       <ApiProvider>
         <RouterProvider router={routes} />
-        <Toaster />
+        <Toaster
+          position="top-center"
+          toastOptions={{
+            duration: 3000,
+            style: {
+              background: "#fff",
+              color: "#363636",
+              borderRadius: "12px",
+              padding: "12px 16px",
+              fontSize: "14px",
+              fontWeight: "500",
+              boxShadow: "0 10px 25px rgba(0, 0, 0, 0.1)",
+              border: "1px solid rgba(0, 0, 0, 0.1)",
+            },
+            success: {
+              style: {
+                background: "#10B981",
+                color: "#fff",
+              },
+              iconTheme: {
+                primary: "#fff",
+                secondary: "#10B981",
+              },
+            },
+            error: {
+              style: {
+                background: "#EF4444",
+                color: "#fff",
+              },
+              iconTheme: {
+                primary: "#fff",
+                secondary: "#EF4444",
+              },
+            },
+          }}
+        />
       </ApiProvider>
     </QueryClientProvider>
   );

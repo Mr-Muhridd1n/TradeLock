@@ -1,3 +1,4 @@
+// src/context/ApiContext.jsx - URL parametrlarini qo'llab-quvvatlash bilan
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../services/api";
@@ -16,7 +17,12 @@ export const useApi = () => {
 
 export const ApiProvider = ({ children }) => {
   const queryClient = useQueryClient();
-  const { user: telegramUser, isReady } = useTelegram();
+  const {
+    user: telegramUser,
+    isReady,
+    getUrlParams,
+    isTelegramWebApp,
+  } = useTelegram();
   const [isAuthenticated, setIsAuthenticated] = useState(api.isAuthenticated());
   const [authLoading, setAuthLoading] = useState(true);
   const [apiOnline, setApiOnline] = useState(true);
@@ -65,14 +71,20 @@ export const ApiProvider = ({ children }) => {
   // Auto authenticate
   useEffect(() => {
     if (isReady && apiOnline) {
+      // URL parametrlarini olish
+      const urlParams = getUrlParams();
+      console.log("URL params for auth:", urlParams);
+
       if (telegramUser && !isAuthenticated) {
-        // Real Telegram data
+        // Real Telegram data bilan auth
         const authData = {
           user: telegramUser,
           hash: window.Telegram?.WebApp?.initData
             ? new URLSearchParams(window.Telegram.WebApp.initData).get("hash")
             : "demo_hash",
+          url_params: urlParams, // URL parametrlarini qo'shish
         };
+        console.log("Authenticating with Telegram data:", authData);
         authenticate(authData);
       } else if (!telegramUser && !isAuthenticated) {
         // Demo mode
@@ -84,13 +96,22 @@ export const ApiProvider = ({ children }) => {
             username: "demo_user",
           },
           hash: "demo_hash",
+          url_params: urlParams, // URL parametrlarini demo mode da ham qo'shish
         };
+        console.log("Authenticating with demo data:", demoData);
         authenticate(demoData);
       } else {
         setAuthLoading(false);
       }
     }
-  }, [isReady, telegramUser, isAuthenticated, authenticate, apiOnline]);
+  }, [
+    isReady,
+    telegramUser,
+    isAuthenticated,
+    authenticate,
+    apiOnline,
+    getUrlParams,
+  ]);
 
   // Queries with error handling
   const {
@@ -135,6 +156,16 @@ export const ApiProvider = ({ children }) => {
     },
   });
 
+  const { data: transactionsData, isLoading: transactionsLoading } = useQuery({
+    queryKey: ["transactions"],
+    queryFn: () => api.getTransactions(50, 0),
+    enabled: isAuthenticated && apiOnline,
+    retry: 2,
+    onError: (error) => {
+      console.error("Transactions error:", error);
+    },
+  });
+
   // Trade mutations with proper error handling
   const createTradeMutation = useMutation({
     mutationFn: (tradeData) => api.createTrade(tradeData),
@@ -142,11 +173,69 @@ export const ApiProvider = ({ children }) => {
       queryClient.invalidateQueries(["trades"]);
       queryClient.invalidateQueries(["balance"]);
       showToast.success("Savdo muvaffaqiyatli yaratildi");
-      return data; // Return data for success callback
+      return data;
     },
     onError: (error) => {
       console.error("Create trade error:", error);
       showToast.error(error.message || "Savdo yaratishda xatolik");
+    },
+  });
+
+  const joinTradeMutation = useMutation({
+    mutationFn: (secretCode) => api.joinTrade(secretCode),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries(["trades"]);
+      queryClient.invalidateQueries(["balance"]);
+      showToast.success("Savdoga muvaffaqiyatli qo'shildingiz");
+      return data;
+    },
+    onError: (error) => {
+      console.error("Join trade error:", error);
+      showToast.error(error.message || "Savdoga qo'shilishda xatolik");
+    },
+  });
+
+  const completeTradeMutation = useMutation({
+    mutationFn: (tradeId) => api.completeTrade(tradeId),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries(["trades"]);
+      queryClient.invalidateQueries(["balance"]);
+      queryClient.invalidateQueries(["transactions"]);
+      showToast.success("Savdo muvaffaqiyatli yakunlandi");
+      return data;
+    },
+    onError: (error) => {
+      console.error("Complete trade error:", error);
+      showToast.error(error.message || "Savdoni yakunlashda xatolik");
+    },
+  });
+
+  const cancelTradeMutation = useMutation({
+    mutationFn: (tradeId) => api.cancelTrade(tradeId),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries(["trades"]);
+      queryClient.invalidateQueries(["balance"]);
+      showToast.success("Savdo bekor qilindi");
+      return data;
+    },
+    onError: (error) => {
+      console.error("Cancel trade error:", error);
+      showToast.error(error.message || "Savdoni bekor qilishda xatolik");
+    },
+  });
+
+  const depositMutation = useMutation({
+    mutationFn: ({ amount, paymentMethodId, referenceId }) =>
+      api.deposit(amount, paymentMethodId, referenceId),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries(["balance"]);
+      queryClient.invalidateQueries(["transactions"]);
+      showToast.success("Mablag' muvaffaqiyatli qo'shildi");
+      return data;
+    },
+    onError: (error) => {
+      console.error("Deposit error:", error);
+      showToast.error(error.message || "To'lovda xatolik");
     },
   });
 
@@ -160,6 +249,53 @@ export const ApiProvider = ({ children }) => {
     });
   };
 
+  const joinTrade = (secretCode) => {
+    return new Promise((resolve, reject) => {
+      joinTradeMutation.mutate(secretCode, {
+        onSuccess: (data) => resolve(data),
+        onError: (error) => reject(error),
+      });
+    });
+  };
+
+  const completeTrade = (tradeId) => {
+    return new Promise((resolve, reject) => {
+      completeTradeMutation.mutate(tradeId, {
+        onSuccess: (data) => resolve(data),
+        onError: (error) => reject(error),
+      });
+    });
+  };
+
+  const cancelTrade = (tradeId) => {
+    return new Promise((resolve, reject) => {
+      cancelTradeMutation.mutate(tradeId, {
+        onSuccess: (data) => resolve(data),
+        onError: (error) => reject(error),
+      });
+    });
+  };
+
+  const deposit = (depositData) => {
+    return new Promise((resolve, reject) => {
+      depositMutation.mutate(depositData, {
+        onSuccess: (data) => resolve(data),
+        onError: (error) => reject(error),
+      });
+    });
+  };
+
+  // Trade code bo'yicha savdo olish
+  const getTradeByCode = async (secretCode) => {
+    try {
+      console.log("Getting trade by code:", secretCode);
+      return await api.getTradeBySecretCode(secretCode);
+    } catch (error) {
+      console.error("Error getting trade by code:", error);
+      throw error;
+    }
+  };
+
   const value = {
     // State
     isAuthenticated,
@@ -170,16 +306,31 @@ export const ApiProvider = ({ children }) => {
     frozenBalance: balanceData?.frozen_balance || 0,
     availableBalance: balanceData?.available_balance || 0,
     trades: tradesData || [],
+    transactions: transactionsData || [],
 
     // Loading states
-    isLoading: userLoading || tradesLoading || balanceLoading,
+    isLoading:
+      userLoading || tradesLoading || balanceLoading || transactionsLoading,
 
     // Functions
     createTrade,
+    joinTrade,
+    completeTrade,
+    cancelTrade,
+    deposit,
+    getTradeByCode,
 
     // Direct mutations (keeping for compatibility)
     createTradeMutation: createTradeMutation.mutate,
     isCreatingTrade: createTradeMutation.isPending,
+    isJoiningTrade: joinTradeMutation.isPending,
+    isCompletingTrade: completeTradeMutation.isPending,
+    isCancelingTrade: cancelTradeMutation.isPending,
+    isDepositing: depositMutation.isPending,
+
+    // Platform info
+    isTelegramWebApp: isTelegramWebApp(),
+    urlParams: getUrlParams(),
 
     // Utility
     logout: () => {
@@ -197,6 +348,9 @@ export const ApiProvider = ({ children }) => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Tizimga kirish...</p>
+          {isTelegramWebApp() && (
+            <p className="text-sm text-blue-600 mt-2">Telegram WebApp</p>
+          )}
         </div>
       </div>
     );

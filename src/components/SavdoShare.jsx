@@ -1,3 +1,4 @@
+// src/components/SavdoShare.jsx - Yaxshilangan ulashish komponenti
 import React, { useState } from "react";
 import QRCode from "react-qr-code";
 import {
@@ -9,67 +10,74 @@ import {
   QrCode,
   AlertCircle,
   ExternalLink,
+  Globe,
+  Smartphone,
 } from "lucide-react";
 
 export const SavdoShare = ({ setShowShare, data }) => {
-  const [copied, setCopied] = useState(false);
-  const [copiedUrl, setCopiedUrl] = useState(false);
+  const [copied, setCopied] = useState({});
   const [showQR, setShowQR] = useState(false);
 
-  // Saqlangan mahfiy kod (o'zgarmas)
-  const secretCode = data.secretCode;
+  const secretCode = data.secretCode || data.secret_code;
 
-  // Telegram WebApp URL yaratish
-  const generateWebAppURL = () => {
-    const botUsername = "Trade_Lock_bot"; // Bot username
-    const webAppUrl = `https://t.me/${botUsername}/start_app?savdo=${secretCode}`;
-    return webAppUrl;
+  // Turli URL formatlarini yaratish
+  const generateUrls = () => {
+    const baseUrl = window.location.origin;
+
+    return {
+      // Asosiy URL (eng qulay)
+      main: `${baseUrl}/join/${secretCode}`,
+
+      // Query parameter bilan
+      query: `${baseUrl}/join?trade=${secretCode}`,
+
+      // Qisqa URL
+      short: `${baseUrl}/t/${secretCode}`,
+
+      // Telegram WebApp URL
+      telegram: `https://t.me/Trade_Lock_bot/start_app?startapp=savdo_${secretCode}`,
+
+      // Direct bot link
+      botDirect: `https://t.me/Trade_Lock_bot?start=savdo_${secretCode}`,
+    };
   };
 
-  const webAppURL = generateWebAppURL();
+  const urls = generateUrls();
 
-  const copyCodeToClipboard = async () => {
+  const copyToClipboard = async (text, type) => {
     try {
-      await navigator.clipboard.writeText(secretCode);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      await navigator.clipboard.writeText(text);
+      setCopied({ ...copied, [type]: true });
+      setTimeout(() => setCopied({ ...copied, [type]: false }), 2000);
     } catch (err) {
       console.error("Copy failed:", err);
     }
   };
 
-  const copyUrlToClipboard = async () => {
-    try {
-      await navigator.clipboard.writeText(webAppURL);
-      setCopiedUrl(true);
-      setTimeout(() => setCopiedUrl(false), 2000);
-    } catch (err) {
-      console.error("Copy failed:", err);
-    }
-  };
-
-  const shareViaTelegram = () => {
+  const shareViaTelegram = (url) => {
     const text = encodeURIComponent(
       `🔐 Sizga xavfsiz savdo taklifi!\n\n` +
+        `📦 Mahsulot: ${data.trade_name || data.savdoName}\n` +
+        `💰 Narx: ${data.amount || data.value} UZS\n\n` +
         `🎯 Quyidagi havolani bosing:\n` +
-        `${webAppURL}\n\n` +
+        `${url}\n\n` +
         `✅ Yoki kodni botga yuboring: ${secretCode}\n` +
         `🤖 Bot: @Trade_Lock_bot`
     );
 
     window.open(
-      `https://t.me/share/url?url=${encodeURIComponent(
-        webAppURL
-      )}&text=${text}`,
+      `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${text}`,
       "_blank"
     );
   };
 
-  const shareViaWhatsApp = () => {
+  const shareViaWhatsApp = (url) => {
     const text = encodeURIComponent(
       `🔐 Sizga xavfsiz savdo taklifi!\n\n` +
+        `📦 Mahsulot: ${data.trade_name || data.savdoName}\n` +
+        `💰 Narx: ${data.amount || data.value} UZS\n\n` +
         `🎯 Quyidagi havolani bosing:\n` +
-        `${webAppURL}\n\n` +
+        `${url}\n\n` +
         `✅ Yoki kodni botga yuboring: ${secretCode}\n` +
         `🤖 Bot: t.me/Trade_Lock_bot`
     );
@@ -77,13 +85,85 @@ export const SavdoShare = ({ setShowShare, data }) => {
     window.open(`https://wa.me/?text=${text}`, "_blank");
   };
 
-  const openWebApp = () => {
-    window.open(webAppURL, "_blank");
+  const shareViaWebShare = (url) => {
+    if (navigator.share) {
+      navigator.share({
+        title: "TradeLock Savdo Taklifi",
+        text: `${data.trade_name || data.savdoName} - ${
+          data.amount || data.value
+        } UZS`,
+        url: url,
+      });
+    } else {
+      copyToClipboard(url, "web");
+    }
   };
 
-  const generateQRCode = () => {
-    setShowQR(true);
-  };
+  const UrlCard = ({
+    title,
+    url,
+    type,
+    description,
+    icon: Icon,
+    recommended = false,
+  }) => (
+    <div
+      className={`bg-white rounded-xl p-4 border-2 ${
+        recommended ? "border-blue-200 bg-blue-50" : "border-gray-100"
+      }`}
+    >
+      {recommended && (
+        <div className="flex items-center gap-1 text-xs text-blue-600 font-semibold mb-2">
+          <CheckCircle size={12} />
+          TAVSIYA ETILADI
+        </div>
+      )}
+
+      <div className="flex items-center gap-3 mb-3">
+        <div
+          className={`w-10 h-10 rounded-full flex items-center justify-center ${
+            recommended ? "bg-blue-100" : "bg-gray-100"
+          }`}
+        >
+          <Icon
+            className={`w-5 h-5 ${
+              recommended ? "text-blue-600" : "text-gray-600"
+            }`}
+          />
+        </div>
+        <div>
+          <h4 className="font-semibold text-gray-800">{title}</h4>
+          <p className="text-xs text-gray-600">{description}</p>
+        </div>
+      </div>
+
+      <div className="bg-gray-50 rounded-lg p-3 mb-3 break-all">
+        <div className="text-sm text-gray-700 font-mono">{url}</div>
+      </div>
+
+      <div className="flex gap-2">
+        <button
+          onClick={() => copyToClipboard(url, type)}
+          className={`flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium transition-all flex-1 ${
+            copied[type]
+              ? "bg-green-500 text-white"
+              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+          }`}
+        >
+          {copied[type] ? <CheckCircle size={16} /> : <Copy size={16} />}
+          {copied[type] ? "Nusxalandi!" : "Nusxalash"}
+        </button>
+
+        <button
+          onClick={() => shareViaTelegram(url)}
+          className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+          title="Telegramda ulashish"
+        >
+          <MessageCircle size={16} />
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div
@@ -91,7 +171,7 @@ export const SavdoShare = ({ setShowShare, data }) => {
       onClick={() => setShowShare(false)}
     >
       <div
-        className="bg-white rounded-3xl shadow-2xl w-full max-w-md mx-4 overflow-hidden transform transition-all duration-300 scale-100 max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden transform transition-all duration-300 scale-100 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -109,7 +189,7 @@ export const SavdoShare = ({ setShowShare, data }) => {
             <div>
               <h2 className="text-xl font-bold text-white">Savdoni Ulashish</h2>
               <p className="text-green-100 text-sm">
-                Xavfsiz havola orqali ulashing
+                Turli usullar bilan havola ulashing
               </p>
             </div>
           </div>
@@ -119,104 +199,186 @@ export const SavdoShare = ({ setShowShare, data }) => {
         <div className="p-6 space-y-6">
           {!showQR ? (
             <>
-              {/* WebApp URL */}
-              <div className="bg-gradient-to-r from-purple-50 to-purple-100 rounded-xl p-6 border-l-4 border-purple-500">
-                <h3 className="font-semibold text-purple-800 mb-3 flex items-center gap-2">
-                  <ExternalLink size={16} />
-                  Tezkor havola
+              {/* Savdo ma'lumotlari */}
+              <div className="bg-gray-50 rounded-xl p-4">
+                <h3 className="font-semibold text-gray-800 mb-2">
+                  Savdo ma'lumotlari
                 </h3>
-                <div className="bg-white rounded-lg p-3 mb-4 break-all">
-                  <div className="text-sm text-blue-600 underline">
-                    {webAppURL}
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={copyUrlToClipboard}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-300 flex-1 ${
-                      copiedUrl
-                        ? "bg-green-500 text-white"
-                        : "bg-purple-500 text-white hover:bg-purple-600"
-                    }`}
-                  >
-                    {copiedUrl ? <CheckCircle size={16} /> : <Copy size={16} />}
-                    {copiedUrl ? "Nusxalandi!" : "Nusxalash"}
-                  </button>
-                </div>
-              </div>
-
-              {/* Yo'riqnoma */}
-              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-                <div className="flex items-start gap-3">
-                  <AlertCircle
-                    className="text-yellow-500 mt-0.5 flex-shrink-0"
-                    size={20}
-                  />
+                <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <h3 className="font-semibold text-yellow-800 mb-2">
-                      Qo'llanma:
-                    </h3>
-                    <ol className="text-sm text-yellow-700 space-y-1">
-                      <li>Havolani do'stingizga yuborib bosishni ayting</li>
-                    </ol>
+                    <span className="text-gray-600">Mahsulot:</span>
+                    <span className="font-medium text-gray-800 ml-2">
+                      {data.trade_name || data.savdoName}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Narx:</span>
+                    <span className="font-medium text-gray-800 ml-2">
+                      {data.amount || data.value} UZS
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Kod:</span>
+                    <span className="font-mono font-medium text-gray-800 ml-2">
+                      {secretCode}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">ID:</span>
+                    <span className="font-medium text-gray-800 ml-2">
+                      #{data.id}
+                    </span>
                   </div>
                 </div>
               </div>
 
-              {/* Ulashish tugmalari */}
+              {/* URL Cards */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-800">
+                  Ulashish usullari
+                </h3>
+
+                <UrlCard
+                  title="Asosiy havola"
+                  url={urls.main}
+                  type="main"
+                  description="Eng qulay va sodda havola"
+                  icon={Globe}
+                  recommended={true}
+                />
+
+                <UrlCard
+                  title="Telegram WebApp"
+                  url={urls.telegram}
+                  type="telegram"
+                  description="To'g'ridan-to'g'ri Telegram ilovasida ochiladi"
+                  icon={Smartphone}
+                />
+
+                <UrlCard
+                  title="Telegram Bot"
+                  url={urls.botDirect}
+                  type="botDirect"
+                  description="Bot orqali ochiladi"
+                  icon={MessageCircle}
+                />
+
+                <UrlCard
+                  title="Qisqa havola"
+                  url={urls.short}
+                  type="short"
+                  description="Qisqa va esda qolarli"
+                  icon={ExternalLink}
+                />
+              </div>
+
+              {/* Tezkor ulashish */}
               <div className="space-y-3">
-                <h3 className="text-sm font-medium text-gray-700">
+                <h3 className="text-lg font-semibold text-gray-800">
                   Tezkor ulashish
                 </h3>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   <button
-                    onClick={shareViaTelegram}
-                    className="flex items-center justify-center gap-2 p-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors cursor-pointer"
+                    onClick={() => shareViaTelegram(urls.main)}
+                    className="flex flex-col items-center gap-2 p-4 bg-blue-50 text-blue-700 rounded-xl hover:bg-blue-100 transition-colors cursor-pointer"
                   >
-                    <MessageCircle size={20} />
+                    <MessageCircle size={24} />
                     <span className="text-sm font-medium">Telegram</span>
                   </button>
 
                   <button
-                    onClick={shareViaWhatsApp}
-                    className="flex items-center justify-center gap-2 p-3 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-colors cursor-pointer"
+                    onClick={() => shareViaWhatsApp(urls.main)}
+                    className="flex flex-col items-center gap-2 p-4 bg-green-50 text-green-700 rounded-xl hover:bg-green-100 transition-colors cursor-pointer"
                   >
-                    <MessageCircle size={20} />
+                    <MessageCircle size={24} />
                     <span className="text-sm font-medium">WhatsApp</span>
+                  </button>
+
+                  <button
+                    onClick={() => shareViaWebShare(urls.main)}
+                    className="flex flex-col items-center gap-2 p-4 bg-purple-50 text-purple-700 rounded-xl hover:bg-purple-100 transition-colors cursor-pointer"
+                  >
+                    <Share2 size={24} />
+                    <span className="text-sm font-medium">Boshqalar</span>
                   </button>
                 </div>
               </div>
 
               {/* QR kod tugmasi */}
               <button
-                onClick={generateQRCode}
-                className="w-full flex items-center justify-center gap-2 p-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors cursor-pointer"
+                onClick={() => setShowQR(true)}
+                className="w-full flex items-center justify-center gap-2 p-4 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors cursor-pointer"
               >
                 <QrCode size={20} />
-                <span className="text-sm font-medium">QR kod yaratish</span>
+                <span className="font-medium">QR kod yaratish</span>
               </button>
             </>
           ) : (
             /* QR kod ko'rinishi */
-            <div className="text-center space-y-4">
-              <h3 className="text-lg font-semibold text-gray-800">QR Kod</h3>
+            <div className="text-center space-y-6">
+              <h3 className="text-xl font-semibold text-gray-800">QR Kod</h3>
+
               <div className="bg-white p-6 rounded-xl border-2 border-gray-100 flex justify-center">
                 <QRCode
-                  value={webAppURL}
+                  value={urls.main}
                   size={200}
                   style={{ height: "auto", maxWidth: "100%", width: "100%" }}
                   level="M"
                 />
               </div>
-              <p className="text-sm text-gray-600">
-                QR kodni skanerlash orqali to'g'ridan-to'g'ri savdoga o'tish
-              </p>
-              <button
-                onClick={() => setShowQR(false)}
-                className="w-full py-3 bg-blue-500 text-white rounded-xl font-semibold hover:bg-blue-600 transition-colors"
-              >
-                Orqaga qaytish
-              </button>
+
+              <div className="bg-blue-50 rounded-lg p-4">
+                <p className="text-sm text-blue-700">
+                  QR kodni skanerlash orqali to'g'ridan-to'g'ri savdoga o'tish
+                  mumkin
+                </p>
+                <p className="text-xs text-blue-600 mt-2 font-mono">
+                  {urls.main}
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => copyToClipboard(urls.main, "qr")}
+                  className={`flex-1 py-3 px-4 rounded-xl font-semibold transition-colors ${
+                    copied.qr
+                      ? "bg-green-500 text-white"
+                      : "bg-blue-500 text-white hover:bg-blue-600"
+                  }`}
+                >
+                  {copied.qr ? "Nusxalandi!" : "Havolani nusxalash"}
+                </button>
+
+                <button
+                  onClick={() => setShowQR(false)}
+                  className="flex-1 py-3 px-4 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 transition-colors"
+                >
+                  Orqaga qaytish
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Yo'riqnoma */}
+          {!showQR && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+              <div className="flex items-start gap-3">
+                <AlertCircle
+                  className="text-yellow-500 mt-0.5 flex-shrink-0"
+                  size={20}
+                />
+                <div>
+                  <h3 className="font-semibold text-yellow-800 mb-2">
+                    Qo'llanma:
+                  </h3>
+                  <ol className="text-sm text-yellow-700 space-y-1 list-decimal list-inside">
+                    <li>Yuqoridagi havolalardan birini tanlang</li>
+                    <li>Nusxalash yoki ulashish tugmasini bosing</li>
+                    <li>Do'stingizga yuboring</li>
+                    <li>Ular havolani bosib savdoga qo'shiladi</li>
+                  </ol>
+                </div>
+              </div>
             </div>
           )}
 
@@ -234,8 +396,9 @@ export const SavdoShare = ({ setShowShare, data }) => {
                   </h3>
                   <ul className="text-sm text-red-700 space-y-1">
                     <li>• Havolani faqat ishonchli odamlar bilan ulashing</li>
-                    <li>• Havola 24 soat davomida amal qiladi</li>
-                    <li>• Kod foydalanilgandan keyin o'chadi</li>
+                    <li>• Savdo 24 soat davomida faol bo'ladi</li>
+                    <li>• Kod ishlatilgandan keyin o'chadi</li>
+                    <li>• Noto'g'ri kodni ulashmang</li>
                   </ul>
                 </div>
               </div>

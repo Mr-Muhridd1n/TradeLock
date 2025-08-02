@@ -1,6 +1,6 @@
-// src/pages/JoinTrade.jsx
+// src/pages/JoinTrade.jsx - URL parametrlarini to'liq qo'llab-quvvatlash
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useApi } from "../context/ApiContext";
 import { FormatNumber } from "../components/FormatNumber";
 import {
@@ -13,10 +13,14 @@ import {
   ArrowRight,
   X,
   Loader,
+  ExternalLink,
+  Copy,
+  Share2,
 } from "lucide-react";
 
 export const JoinTrade = () => {
-  const { secretCode } = useParams();
+  const { secretCode: urlSecretCode } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { joinTrade, isJoiningTrade, availableBalance, getTradeByCode } =
     useApi();
@@ -25,20 +29,75 @@ export const JoinTrade = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [actualSecretCode, setActualSecretCode] = useState(null);
 
+  // URL parametrlardan secret code ni olish
   useEffect(() => {
-    loadTradeInfo();
-  }, [secretCode]);
+    let codeToUse = null;
 
-  const loadTradeInfo = async () => {
+    // 1. URL path dan
+    if (urlSecretCode) {
+      codeToUse = urlSecretCode;
+      console.log("Secret code from URL path:", codeToUse);
+    }
+
+    // 2. Query parametrdan (?trade=CODE)
+    else if (searchParams.get("trade")) {
+      codeToUse = searchParams.get("trade");
+      console.log("Secret code from query param 'trade':", codeToUse);
+    }
+
+    // 3. Query parametrdan (?code=CODE)
+    else if (searchParams.get("code")) {
+      codeToUse = searchParams.get("code");
+      console.log("Secret code from query param 'code':", codeToUse);
+    }
+
+    // 4. Query parametrdan (?savdo=CODE)
+    else if (searchParams.get("savdo")) {
+      codeToUse = searchParams.get("savdo");
+      console.log("Secret code from query param 'savdo':", codeToUse);
+    }
+
+    // 5. Telegram WebApp start_param dan
+    if (window.Telegram?.WebApp?.initDataUnsafe?.start_param) {
+      const startParam = window.Telegram.WebApp.initDataUnsafe.start_param;
+      console.log("Telegram start_param:", startParam);
+
+      // start_param dan secret code ajratib olish
+      if (startParam.startsWith("savdo_")) {
+        codeToUse = startParam.replace("savdo_", "");
+        console.log("Secret code from Telegram start_param:", codeToUse);
+      } else if (startParam.startsWith("trade_")) {
+        codeToUse = startParam.replace("trade_", "");
+        console.log("Secret code from Telegram start_param:", codeToUse);
+      } else {
+        codeToUse = startParam;
+        console.log("Direct secret code from Telegram start_param:", codeToUse);
+      }
+    }
+
+    if (codeToUse) {
+      setActualSecretCode(codeToUse);
+      loadTradeInfo(codeToUse);
+    } else {
+      setError(
+        "Savdo kodi topilmadi. URL yoki Telegram havolasida xatolik bo'lishi mumkin."
+      );
+      setLoading(false);
+    }
+  }, [urlSecretCode, searchParams]);
+
+  const loadTradeInfo = async (secretCode) => {
     try {
       setLoading(true);
       setError(null);
 
+      console.log("Loading trade with secret code:", secretCode);
       const trade = await getTradeByCode(secretCode);
 
       if (!trade) {
-        throw new Error("Savdo topilmadi");
+        throw new Error("Savdo topilmadi yoki muddati tugagan");
       }
 
       if (trade.status !== "active") {
@@ -51,6 +110,7 @@ export const JoinTrade = () => {
 
       setTradeInfo(trade);
     } catch (error) {
+      console.error("Trade loading error:", error);
       setError(error.message);
     } finally {
       setLoading(false);
@@ -59,7 +119,7 @@ export const JoinTrade = () => {
 
   const handleJoinTrade = async () => {
     try {
-      await joinTrade(secretCode);
+      await joinTrade(actualSecretCode);
       navigate("/savdolar");
     } catch (error) {
       setError(error.message);
@@ -105,17 +165,44 @@ export const JoinTrade = () => {
     }
   };
 
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text).then(() => {
+      // Toast notification
+      console.log("Copied to clipboard:", text);
+    });
+  };
+
+  const shareUrl = () => {
+    const currentUrl = window.location.href;
+    if (navigator.share) {
+      navigator.share({
+        title: "TradeLock Savdo Taklifi",
+        text: `Sizga savdo taklifi: ${tradeInfo?.trade_name}`,
+        url: currentUrl,
+      });
+    } else {
+      copyToClipboard(currentUrl);
+    }
+  };
+
+  // Loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <Loader className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
           <p className="text-gray-600">Savdo ma'lumotlari yuklanmoqda...</p>
+          {actualSecretCode && (
+            <p className="text-sm text-gray-500 mt-2">
+              Kod: {actualSecretCode}
+            </p>
+          )}
         </div>
       </div>
     );
   }
 
+  // Error state
   if (error || !tradeInfo) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -125,12 +212,40 @@ export const JoinTrade = () => {
           </div>
           <h2 className="text-xl font-bold text-gray-800 mb-2">Xatolik!</h2>
           <p className="text-gray-600 mb-6">{error || "Savdo topilmadi"}</p>
-          <button
-            onClick={() => navigate("/")}
-            className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 transition-colors"
-          >
-            Bosh sahifaga qaytish
-          </button>
+
+          {/* Debug info */}
+          <div className="bg-gray-50 rounded-lg p-4 mb-6 text-left">
+            <h3 className="font-semibold text-gray-800 mb-2">
+              Debug ma'lumot:
+            </h3>
+            <div className="text-sm text-gray-600 space-y-1">
+              <p>URL Secret Code: {urlSecretCode || "Yo'q"}</p>
+              <p>Query 'trade': {searchParams.get("trade") || "Yo'q"}</p>
+              <p>Query 'code': {searchParams.get("code") || "Yo'q"}</p>
+              <p>Query 'savdo': {searchParams.get("savdo") || "Yo'q"}</p>
+              <p>
+                Telegram start_param:{" "}
+                {window.Telegram?.WebApp?.initDataUnsafe?.start_param || "Yo'q"}
+              </p>
+              <p>Ishlatilgan kod: {actualSecretCode || "Aniqlanmadi"}</p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <button
+              onClick={() => navigate("/")}
+              className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 transition-colors"
+            >
+              Bosh sahifaga qaytish
+            </button>
+
+            <button
+              onClick={() => window.location.reload()}
+              className="w-full bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-300 transition-colors"
+            >
+              Qayta yuklash
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -149,10 +264,42 @@ export const JoinTrade = () => {
           <p className="text-blue-100 text-sm">
             Savdo ma'lumotlarini ko'ring va qo'shiling
           </p>
+          {/* URL info */}
+          <div className="mt-2 text-xs text-blue-200">
+            Kod: {actualSecretCode}
+          </div>
         </div>
       </div>
 
       <div className="max-w-4xl mx-auto p-4 space-y-6">
+        {/* Share section */}
+        <div className="bg-white rounded-xl p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-gray-800">
+                Bu havola ishlamayaptimi?
+              </h3>
+              <p className="text-sm text-gray-600">Boshqalar bilan ulashing</p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => copyToClipboard(window.location.href)}
+                className="flex items-center gap-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm"
+              >
+                <Copy size={16} />
+                Nusxalash
+              </button>
+              <button
+                onClick={shareUrl}
+                className="flex items-center gap-1 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 text-sm"
+              >
+                <Share2 size={16} />
+                Ulashish
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* Trade Info Card */}
         <div className="bg-white rounded-2xl shadow-lg p-6">
           <div className="flex items-center gap-3 mb-6">

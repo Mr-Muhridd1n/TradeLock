@@ -1,44 +1,120 @@
-// src/hooks/useTelegram.js
+// src/hooks/useTelegram.js - Yaxshilangan Telegram integratsiyasi
 import { useEffect, useState } from "react";
 
 export const useTelegram = () => {
   const [tg, setTg] = useState(null);
   const [user, setUser] = useState(null);
   const [isReady, setIsReady] = useState(false);
+  const [startParam, setStartParam] = useState(null);
+  const [platform, setPlatform] = useState("web"); // 'telegram' | 'web'
 
   useEffect(() => {
     const telegram = window.Telegram?.WebApp;
+
     if (telegram) {
+      console.log("Telegram WebApp detected");
       telegram.ready();
       setTg(telegram);
-      setUser(telegram.initDataUnsafe?.user);
+      setPlatform("telegram");
+
+      // User ma'lumotlarini olish
+      const telegramUser = telegram.initDataUnsafe?.user;
+      if (telegramUser) {
+        setUser(telegramUser);
+        console.log("Telegram user:", telegramUser);
+      }
+
+      // Start parameter ni olish (savdo kodi uchun)
+      const param = telegram.initDataUnsafe?.start_param;
+      if (param) {
+        setStartParam(param);
+        console.log("Telegram start_param:", param);
+
+        // Start param dan savdo kodini ajratib olish
+        let tradeCode = null;
+        if (param.startsWith("savdo_")) {
+          tradeCode = param.replace("savdo_", "");
+        } else if (param.startsWith("trade_")) {
+          tradeCode = param.replace("trade_", "");
+        } else {
+          tradeCode = param;
+        }
+
+        if (tradeCode) {
+          console.log("Extracted trade code:", tradeCode);
+          // URL ni yangilash savdo sahifasiga yo'naltirish uchun
+          const currentPath = window.location.pathname;
+          if (
+            !currentPath.includes("/join/") &&
+            !currentPath.includes("/trade/")
+          ) {
+            window.history.replaceState(null, "", `/join/${tradeCode}`);
+          }
+        }
+      }
+
+      // Query string parametrlarini ham tekshirish
+      const urlParams = new URLSearchParams(window.location.search);
+      const queryParam = urlParams.get("startapp");
+      if (queryParam && queryParam.startsWith("savdo_")) {
+        const code = queryParam.replace("savdo_", "");
+        console.log("Trade code from query:", code);
+        if (!window.location.pathname.includes("/join/")) {
+          window.history.replaceState(null, "", `/join/${code}`);
+        }
+      }
+
       setIsReady(true);
 
-      // Set theme
+      // WebApp sozlamalarini o'rnatish
       telegram.expand();
       telegram.setHeaderColor("#4facfe");
       telegram.setBackgroundColor("#f8f9fa");
+
+      // Viewport ni sozlash
+      telegram.viewportHeight = window.innerHeight;
+      telegram.viewportStableHeight = window.innerHeight;
     } else {
-      // Demo mode for development
+      console.log("Telegram WebApp not detected, using web mode");
+      setPlatform("web");
       setIsReady(true);
+
+      // Web mode uchun demo user
       setUser({
         id: 123456789,
         first_name: "Demo",
         last_name: "User",
         username: "demo_user",
       });
+
+      // URL parametrlarini web mode da ham tekshirish
+      const urlParams = new URLSearchParams(window.location.search);
+      const trade =
+        urlParams.get("trade") ||
+        urlParams.get("savdo") ||
+        urlParams.get("code");
+      if (trade) {
+        console.log("Trade code from URL in web mode:", trade);
+        if (!window.location.pathname.includes("/join/")) {
+          window.history.replaceState(null, "", `/join/${trade}`);
+        }
+      }
     }
   }, []);
 
   const sendData = (data) => {
     if (tg) {
       tg.sendData(JSON.stringify(data));
+    } else {
+      console.log("Would send data:", data);
     }
   };
 
   const closeTg = () => {
     if (tg) {
       tg.close();
+    } else {
+      window.close();
     }
   };
 
@@ -61,12 +137,16 @@ export const useTelegram = () => {
 
   const hapticFeedback = (type = "impact", style = "medium") => {
     if (tg && tg.HapticFeedback) {
-      if (type === "impact") {
-        tg.HapticFeedback.impactOccurred(style);
-      } else if (type === "notification") {
-        tg.HapticFeedback.notificationOccurred(style);
-      } else if (type === "selection") {
-        tg.HapticFeedback.selectionChanged();
+      try {
+        if (type === "impact") {
+          tg.HapticFeedback.impactOccurred(style);
+        } else if (type === "notification") {
+          tg.HapticFeedback.notificationOccurred(style);
+        } else if (type === "selection") {
+          tg.HapticFeedback.selectionChanged();
+        }
+      } catch (error) {
+        console.log("Haptic feedback not available:", error);
       }
     }
   };
@@ -86,17 +166,131 @@ export const useTelegram = () => {
         tg.MainButton.hide();
       }
     },
+    setText: (text) => {
+      if (tg && tg.MainButton) {
+        tg.MainButton.text = text;
+      }
+    },
+    setColor: (color) => {
+      if (tg && tg.MainButton) {
+        tg.MainButton.color = color;
+      }
+    },
+    setTextColor: (color) => {
+      if (tg && tg.MainButton) {
+        tg.MainButton.textColor = color;
+      }
+    },
+    enable: () => {
+      if (tg && tg.MainButton) {
+        tg.MainButton.enable();
+      }
+    },
+    disable: () => {
+      if (tg && tg.MainButton) {
+        tg.MainButton.disable();
+      }
+    },
+  };
+
+  const backButton = {
+    show: (callback) => {
+      if (tg && tg.BackButton) {
+        tg.BackButton.show();
+        if (callback) {
+          tg.BackButton.onClick(callback);
+        }
+      }
+    },
+    hide: () => {
+      if (tg && tg.BackButton) {
+        tg.BackButton.hide();
+      }
+    },
+  };
+
+  // Theme dan ranglarni olish
+  const getThemeParams = () => {
+    if (tg && tg.themeParams) {
+      return tg.themeParams;
+    }
+    return {
+      bg_color: "#ffffff",
+      text_color: "#000000",
+      hint_color: "#999999",
+      link_color: "#4facfe",
+      button_color: "#4facfe",
+      button_text_color: "#ffffff",
+    };
+  };
+
+  // URL parametrlarini olish utility function
+  const getUrlParams = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const pathParts = window.location.pathname.split("/").filter(Boolean);
+
+    return {
+      // Query parametrlar
+      trade: urlParams.get("trade"),
+      savdo: urlParams.get("savdo"),
+      code: urlParams.get("code"),
+      startapp: urlParams.get("startapp"),
+
+      // Path parametrlar
+      pathCode: pathParts.length >= 2 ? pathParts[1] : null,
+
+      // Telegram parametrlar
+      startParam: startParam,
+
+      // Birinchi topilgan kod
+      firstCode:
+        urlParams.get("trade") ||
+        urlParams.get("savdo") ||
+        urlParams.get("code") ||
+        (pathParts.length >= 2 ? pathParts[1] : null) ||
+        (startParam && startParam.includes("_")
+          ? startParam.split("_")[1]
+          : startParam),
+    };
+  };
+
+  // Platform detection
+  const isTelegramWebApp = () => platform === "telegram";
+  const isWebBrowser = () => platform === "web";
+
+  // Viewport ma'lumotlari
+  const getViewport = () => {
+    if (tg) {
+      return {
+        height: tg.viewportHeight,
+        stableHeight: tg.viewportStableHeight,
+        isExpanded: tg.isExpanded,
+      };
+    }
+    return {
+      height: window.innerHeight,
+      stableHeight: window.innerHeight,
+      isExpanded: true,
+    };
   };
 
   return {
     tg,
     user,
     isReady,
+    startParam,
+    platform,
     sendData,
     closeTg,
     showAlert,
     showConfirm,
     hapticFeedback,
     mainButton,
+    backButton,
+    getThemeParams,
+    getUrlParams,
+    isTelegramWebApp,
+    isWebBrowser,
+    getViewport,
   };
 };

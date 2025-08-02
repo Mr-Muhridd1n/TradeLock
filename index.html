@@ -1,14 +1,305 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="uz">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="./public/assets/react.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Telegram Savdo Platformasi</title>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+
+    <!-- Telegram WebApp uchun meta teglar -->
+    <meta name="telegram-web-app" content="true" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- PWA meta teglar -->
+    <meta name="theme-color" content="#4facfe" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="TradeLock" />
+
+    <!-- SEO va social media -->
+    <meta name="description" content="Xavfsiz savdo platformasi - TradeLock" />
+    <meta
+      name="keywords"
+      content="savdo, trade, lock, telegram, bot, xavfsiz"
+    />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="TradeLock - Xavfsiz Savdo Platformasi" />
+    <meta
+      property="og:description"
+      content="Telegram orqali xavfsiz savdo qiling"
+    />
+    <meta property="og:image" content="/assets/og-image.jpg" />
+    <meta property="og:url" content="https://trade-lock.vercel.app" />
+
+    <!-- Telegram WebApp -->
+    <meta property="telegram:channel" content="@trade_lock_news" />
+
+    <!-- Icons -->
+    <link rel="icon" type="image/svg+xml" href="/assets/react.svg" />
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+
+    <!-- Preconnect lar -->
+    <link rel="preconnect" href="https://mr-muhridd1n.uz" />
+    <link rel="preconnect" href="https://api.telegram.org" />
+
+    <title>TradeLock - Xavfsiz Savdo Platformasi</title>
+
+    <!-- Telegram WebApp Script - Eng muhim! -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <!-- URL parametrlarini olish va redirect qilish -->
+    <script>
+      // URL parametrlarini tekshirish va to'g'ri marshrutga yo'naltirish
+      (function () {
+        try {
+          const urlParams = new URLSearchParams(window.location.search);
+          const pathParts = window.location.pathname.split("/").filter(Boolean);
+
+          // Turli parametrlarni tekshirish
+          let tradeCode = null;
+
+          // 1. Query parametrlardan
+          tradeCode =
+            urlParams.get("trade") ||
+            urlParams.get("savdo") ||
+            urlParams.get("code");
+
+          // 2. Telegram WebApp startapp parametridan
+          const startapp = urlParams.get("startapp");
+          if (startapp && startapp.includes("savdo_")) {
+            tradeCode = startapp.replace("savdo_", "");
+          }
+
+          // 3. Path dan
+          if (
+            !tradeCode &&
+            pathParts.length >= 2 &&
+            (pathParts[0] === "join" ||
+              pathParts[0] === "trade" ||
+              pathParts[0] === "savdo")
+          ) {
+            tradeCode = pathParts[1];
+          }
+
+          // 4. Telegram WebApp start_param (bu keyinroq JavaScript orqali olinadi)
+
+          // Agar kod topilsa va hozirgi URL to'g'ri emas bo'lsa, redirect qilish
+          if (tradeCode && !window.location.pathname.includes("/join/")) {
+            console.log("Redirecting to trade:", tradeCode);
+            window.history.replaceState(null, "", `/join/${tradeCode}`);
+          }
+
+          // Debug info
+          console.log("URL Analysis:", {
+            pathname: window.location.pathname,
+            search: window.location.search,
+            tradeCode: tradeCode,
+            pathParts: pathParts,
+            urlParams: Object.fromEntries(urlParams.entries()),
+          });
+        } catch (error) {
+          console.error("URL parsing error:", error);
+        }
+      })();
+    </script>
+
+    <!-- Telegram WebApp ni global qilish -->
+    <script>
+      // Telegram WebApp ni tekshirish va global o'zgaruvchilarni o'rnatish
+      window.isTelegramWebApp = !!(window.Telegram && window.Telegram.WebApp);
+      window.telegramWebApp = window.Telegram?.WebApp;
+
+      // Debug info
+      console.log("Telegram WebApp detected:", window.isTelegramWebApp);
+      if (window.isTelegramWebApp) {
+        console.log("Telegram WebApp version:", window.telegramWebApp.version);
+        console.log(
+          "Telegram WebApp platform:",
+          window.telegramWebApp.platform
+        );
+      }
+
+      // Agar Telegram WebApp bo'lsa, CSS o'zgaruvchilarni o'rnatish
+      if (window.isTelegramWebApp) {
+        const tg = window.telegramWebApp;
+        if (tg.themeParams) {
+          document.documentElement.style.setProperty(
+            "--tg-bg-color",
+            tg.themeParams.bg_color || "#ffffff"
+          );
+          document.documentElement.style.setProperty(
+            "--tg-text-color",
+            tg.themeParams.text_color || "#000000"
+          );
+          document.documentElement.style.setProperty(
+            "--tg-hint-color",
+            tg.themeParams.hint_color || "#999999"
+          );
+          document.documentElement.style.setProperty(
+            "--tg-link-color",
+            tg.themeParams.link_color || "#4facfe"
+          );
+          document.documentElement.style.setProperty(
+            "--tg-button-color",
+            tg.themeParams.button_color || "#4facfe"
+          );
+          document.documentElement.style.setProperty(
+            "--tg-button-text-color",
+            tg.themeParams.button_text_color || "#ffffff"
+          );
+        }
+      }
+    </script>
+
+    <!-- CSS o'zgaruvchilar -->
+    <style>
+      :root {
+        --tg-bg-color: #ffffff;
+        --tg-text-color: #000000;
+        --tg-hint-color: #999999;
+        --tg-link-color: #4facfe;
+        --tg-button-color: #4facfe;
+        --tg-button-text-color: #ffffff;
+      }
+
+      /* Telegram WebApp uchun maxsus stillar */
+      .telegram-safe-area {
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+
+      /* Loading animation */
+      .loading-spinner {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid var(--tg-button-color);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* Error state */
+      .error-message {
+        color: #e74c3c;
+        background: #fdf2f2;
+        border: 1px solid #fecaca;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        margin: 1rem 0;
+      }
+
+      /* Success state */
+      .success-message {
+        color: #065f46;
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        margin: 1rem 0;
+      }
+    </style>
   </head>
-  <body class="select-none">
+  <body class="select-none telegram-safe-area">
+    <!-- Loading indicator -->
+    <div
+      id="loading-screen"
+      style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: var(--tg-bg-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        flex-direction: column;
+        gap: 1rem;
+      "
+    >
+      <div class="loading-spinner"></div>
+      <div
+        style="color: var(--tg-text-color); font-family: system-ui, sans-serif"
+      >
+        TradeLock yuklanmoqda...
+      </div>
+    </div>
+
+    <!-- Error fallback -->
+    <div
+      id="error-fallback"
+      style="display: none; padding: 2rem; text-align: center"
+    >
+      <div class="error-message">
+        <h2>Xatolik yuz berdi</h2>
+        <p>Iltimos, sahifani qayta yuklang yoki keyinroq urinib ko'ring.</p>
+        <button
+          onclick="window.location.reload()"
+          style="
+            background: var(--tg-button-color);
+            color: var(--tg-button-text-color);
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            margin-top: 1rem;
+          "
+        >
+          Qayta yuklash
+        </button>
+      </div>
+    </div>
+
+    <!-- Main app container -->
     <div id="root"></div>
+
+    <!-- Scripts -->
     <script type="module" src="/src/main.jsx"></script>
+
+    <!-- Loading screen ni yashirish -->
+    <script>
+      // React yuklangandan keyin loading screen ni yashirish
+      window.addEventListener("load", function () {
+        setTimeout(() => {
+          const loadingScreen = document.getElementById("loading-screen");
+          if (loadingScreen) {
+            loadingScreen.style.opacity = "0";
+            loadingScreen.style.transition = "opacity 0.3s ease-out";
+            setTimeout(() => {
+              loadingScreen.style.display = "none";
+            }, 300);
+          }
+        }, 1000);
+      });
+
+      // Error handling
+      window.addEventListener("error", function (error) {
+        console.error("Global error:", error);
+        const loadingScreen = document.getElementById("loading-screen");
+        const errorFallback = document.getElementById("error-fallback");
+
+        if (loadingScreen) loadingScreen.style.display = "none";
+        if (errorFallback) errorFallback.style.display = "block";
+      });
+
+      // Unhandled promise rejections
+      window.addEventListener("unhandledrejection", function (event) {
+        console.error("Unhandled promise rejection:", event.reason);
+      });
+    </script>
   </body>
 </html>
