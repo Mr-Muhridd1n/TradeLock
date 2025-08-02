@@ -41,7 +41,7 @@ export const useTelegram = () => {
         }
 
         if (tradeCode) {
-          console.log("Extracted trade code:", tradeCode);
+          console.log("Extracted trade code from start_param:", tradeCode);
           // URL ni yangilash savdo sahifasiga yo'naltirish uchun
           const currentPath = window.location.pathname;
           if (
@@ -53,14 +53,45 @@ export const useTelegram = () => {
         }
       }
 
-      // Query string parametrlarini ham tekshirish
+      // Query string parametrlarini ham tekshirish (startapp uchun)
       const urlParams = new URLSearchParams(window.location.search);
+
+      // 1. Oddiy startapp parametri
       const queryParam = urlParams.get("startapp");
       if (queryParam && queryParam.startsWith("savdo_")) {
         const code = queryParam.replace("savdo_", "");
-        console.log("Trade code from query:", code);
+        console.log("Trade code from startapp query:", code);
         if (!window.location.pathname.includes("/join/")) {
           window.history.replaceState(null, "", `/join/${code}`);
+        }
+      }
+
+      // 2. Telegram initData dan parametrlar olish
+      if (telegram.initData) {
+        try {
+          const initDataParams = new URLSearchParams(telegram.initData);
+
+          // start_param ni initData dan ham olish mumkin
+          const initStartParam = initDataParams.get("start_param");
+          if (initStartParam && !param) {
+            console.log("Found start_param in initData:", initStartParam);
+            setStartParam(initStartParam);
+
+            let tradeCode = null;
+            if (initStartParam.startsWith("savdo_")) {
+              tradeCode = initStartParam.replace("savdo_", "");
+            } else if (initStartParam.startsWith("trade_")) {
+              tradeCode = initStartParam.replace("trade_", "");
+            } else {
+              tradeCode = initStartParam;
+            }
+
+            if (tradeCode && !window.location.pathname.includes("/join/")) {
+              window.history.replaceState(null, "", `/join/${tradeCode}`);
+            }
+          }
+        } catch (error) {
+          console.error("Error parsing initData:", error);
         }
       }
 

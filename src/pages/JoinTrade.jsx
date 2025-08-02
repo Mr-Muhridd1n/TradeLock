@@ -77,6 +77,20 @@ export const JoinTrade = () => {
       }
     }
 
+    // 6. Telegram WebApp startapp parametridan (yangi usul)
+    if (!codeToUse && window.Telegram?.WebApp?.initData) {
+      try {
+        const initData = new URLSearchParams(window.Telegram.WebApp.initData);
+        const startapp = initData.get("start_param");
+        if (startapp && startapp.includes("savdo_")) {
+          codeToUse = startapp.replace("savdo_", "");
+          console.log("Secret code from Telegram initData:", codeToUse);
+        }
+      } catch (error) {
+        console.error("Error parsing Telegram initData:", error);
+      }
+    }
+
     if (codeToUse) {
       setActualSecretCode(codeToUse);
       loadTradeInfo(codeToUse);
@@ -223,11 +237,20 @@ export const JoinTrade = () => {
               <p>Query 'trade': {searchParams.get("trade") || "Yo'q"}</p>
               <p>Query 'code': {searchParams.get("code") || "Yo'q"}</p>
               <p>Query 'savdo': {searchParams.get("savdo") || "Yo'q"}</p>
+              <p>Query 'startapp': {searchParams.get("startapp") || "Yo'q"}</p>
               <p>
                 Telegram start_param:{" "}
                 {window.Telegram?.WebApp?.initDataUnsafe?.start_param || "Yo'q"}
               </p>
+              <p>
+                Telegram initData:{" "}
+                {window.Telegram?.WebApp?.initData ? "Mavjud" : "Yo'q"}
+              </p>
+              <p>
+                Is Telegram WebApp: {window.Telegram?.WebApp ? "Ha" : "Yo'q"}
+              </p>
               <p>Ishlatilgan kod: {actualSecretCode || "Aniqlanmadi"}</p>
+              <p>Current URL: {window.location.href}</p>
             </div>
           </div>
 

@@ -34,8 +34,8 @@ export const SavdoShare = ({ setShowShare, data }) => {
       // Qisqa URL
       short: `${baseUrl}/t/${secretCode}`,
 
-      // Telegram WebApp URL
-      telegram: `https://t.me/Trade_Lock_bot/start_app?startapp=savdo_${secretCode}`,
+      // Telegram WebApp URL (to'g'ri format)
+      telegram: `https://t.me/Trade_Lock_bot/app?startapp=savdo_${secretCode}`,
 
       // Direct bot link
       botDirect: `https://t.me/Trade_Lock_bot?start=savdo_${secretCode}`,
