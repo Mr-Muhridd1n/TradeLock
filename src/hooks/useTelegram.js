@@ -1,4 +1,4 @@
-// src/hooks/useTelegram.js - Yaxshilangan Telegram integratsiyasi
+// src/hooks/useTelegram.js - Telegram WebApp uchun mukammal optimallashtirilgan
 import { useEffect, useState } from "react";
 
 export const useTelegram = () => {
@@ -6,120 +6,127 @@ export const useTelegram = () => {
   const [user, setUser] = useState(null);
   const [isReady, setIsReady] = useState(false);
   const [startParam, setStartParam] = useState(null);
-  const [platform, setPlatform] = useState("web"); // 'telegram' | 'web'
+  const [platform, setPlatform] = useState("web");
 
   useEffect(() => {
-    const telegram = window.Telegram?.WebApp;
+    let telegram = null;
 
-    if (telegram) {
+    try {
+      telegram = window.Telegram?.WebApp;
+    } catch (error) {
+      console.error("Telegram WebApp obyektiga kirishda xatolik:", error);
+    }
+
+    // Telegram WebApp mavjudligini tekshirish
+    const isTelegramWebAppAvailable = () => {
+      return !!(
+        telegram &&
+        typeof telegram.ready === "function" &&
+        typeof telegram.expand === "function"
+      );
+    };
+
+    if (isTelegramWebAppAvailable()) {
       try {
-        console.log("Telegram WebApp detected");
+        console.log("Telegram WebApp aniqlandi");
         telegram.ready();
         setTg(telegram);
         setPlatform("telegram");
 
-        // User ma'lumotlarini olish
-        const telegramUser = telegram.initDataUnsafe?.user;
-        if (telegramUser) {
-          setUser(telegramUser);
-          console.log("Telegram user:", telegramUser);
-        }
-
-        // Start parameter ni olish (savdo kodi uchun)
-        const param = telegram.initDataUnsafe?.start_param;
-        if (param) {
-          setStartParam(param);
-          console.log("Telegram start_param:", param);
-
-          // Start param dan savdo kodini ajratib olish
-          let tradeCode = null;
-          if (param.startsWith("savdo_")) {
-            tradeCode = param.replace("savdo_", "");
-          } else if (param.startsWith("trade_")) {
-            tradeCode = param.replace("trade_", "");
+        // User ma'lumotlarini xavfsiz olish
+        let telegramUser = null;
+        try {
+          telegramUser = telegram.initDataUnsafe?.user;
+          if (telegramUser && telegramUser.id) {
+            setUser(telegramUser);
+            console.log(
+              "Telegram user muvaffaqiyatli olindi:",
+              telegramUser.first_name
+            );
           } else {
-            tradeCode = param;
+            console.warn("Telegram user ma'lumotlari topilmadi");
           }
-
-          if (tradeCode) {
-            console.log("Extracted trade code from start_param:", tradeCode);
-            // URL ni yangilash savdo sahifasiga yo'naltirish uchun
-            const currentPath = window.location.pathname;
-            if (
-              !currentPath.includes("/join/") &&
-              !currentPath.includes("/trade/")
-            ) {
-              window.history.replaceState(null, "", `/join/${tradeCode}`);
-            }
-          }
+        } catch (userError) {
+          console.error(
+            "Telegram user ma'lumotlarini olishda xatolik:",
+            userError
+          );
         }
 
-        // Query string parametrlarini ham tekshirish (startapp uchun)
-        const urlParams = new URLSearchParams(window.location.search);
-
-        // 1. Oddiy startapp parametri
-        const queryParam = urlParams.get("startapp");
-        if (queryParam && queryParam.startsWith("savdo_")) {
-          const code = queryParam.replace("savdo_", "");
-          console.log("Trade code from startapp query:", code);
-          if (!window.location.pathname.includes("/join/")) {
-            window.history.replaceState(null, "", `/join/${code}`);
+        // Start parameter ni xavfsiz olish
+        try {
+          const param = telegram.initDataUnsafe?.start_param;
+          if (param) {
+            setStartParam(param);
+            console.log("Start param olindi:", param);
+            handleStartParam(param);
           }
+        } catch (paramError) {
+          console.error("Start param olishda xatolik:", paramError);
         }
 
-        // 2. Telegram initData dan parametrlar olish
-        if (telegram.initData) {
-          try {
+        // Query string parametrlarini tekshirish
+        try {
+          const urlParams = new URLSearchParams(window.location.search);
+          const queryParam = urlParams.get("startapp");
+          if (queryParam && queryParam.startsWith("savdo_")) {
+            const code = queryParam.replace("savdo_", "");
+            console.log("Trade code from query param:", code);
+            navigateToTrade(code);
+          }
+        } catch (queryError) {
+          console.error("Query param tekshirishda xatolik:", queryError);
+        }
+
+        // InitData dan parametrlar olish
+        try {
+          if (telegram.initData) {
             const initDataParams = new URLSearchParams(telegram.initData);
-
-            // start_param ni initData dan ham olish mumkin
             const initStartParam = initDataParams.get("start_param");
-            if (initStartParam && !param) {
-              console.log("Found start_param in initData:", initStartParam);
+            if (initStartParam && !startParam) {
+              console.log("InitData dan start_param topildi:", initStartParam);
               setStartParam(initStartParam);
-
-              let tradeCode = null;
-              if (initStartParam.startsWith("savdo_")) {
-                tradeCode = initStartParam.replace("savdo_", "");
-              } else if (initStartParam.startsWith("trade_")) {
-                tradeCode = initStartParam.replace("trade_", "");
-              } else {
-                tradeCode = initStartParam;
-              }
-
-              if (tradeCode && !window.location.pathname.includes("/join/")) {
-                window.history.replaceState(null, "", `/join/${tradeCode}`);
-              }
+              handleStartParam(initStartParam);
             }
-          } catch (error) {
-            console.error("Error parsing initData:", error);
           }
+        } catch (initDataError) {
+          console.error("InitData qayta ishlashda xatolik:", initDataError);
         }
-
-        setIsReady(true);
 
         // WebApp sozlamalarini xavfsiz o'rnatish
         try {
-          telegram.expand();
-          telegram.setHeaderColor("#4facfe");
-          telegram.setBackgroundColor("#f8f9fa");
-
-          // Viewport ma'lumotlarini olish (set qilmaslik!)
-          const viewport = {
-            height: telegram.viewportHeight || window.innerHeight,
-            stableHeight: telegram.viewportStableHeight || window.innerHeight,
-            isExpanded: telegram.isExpanded || false,
-          };
-
-          console.log("Telegram viewport info:", viewport);
-        } catch (error) {
-          console.error("Error setting up Telegram WebApp:", error);
+          if (typeof telegram.expand === "function") {
+            telegram.expand();
+          }
+          if (typeof telegram.setHeaderColor === "function") {
+            telegram.setHeaderColor("#4facfe");
+          }
+          if (typeof telegram.setBackgroundColor === "function") {
+            telegram.setBackgroundColor("#f8f9fa");
+          }
+        } catch (setupError) {
+          console.error(
+            "WebApp sozlamalarini o'rnatishda xatolik:",
+            setupError
+          );
         }
-      } catch (error) {
-        console.error("Error initializing Telegram WebApp:", error);
-        // Telegram WebApp xatosi bo'lsa, web mode ga o'tish
-        setPlatform("web");
+
         setIsReady(true);
+      } catch (error) {
+        console.error("Telegram WebApp ishga tushirishda xatolik:", error);
+        fallbackToWebMode();
+      }
+    } else {
+      console.log("Telegram WebApp emas, web rejimiga o'tish");
+      fallbackToWebMode();
+    }
+
+    function fallbackToWebMode() {
+      setPlatform("web");
+      setIsReady(true);
+
+      // Development da demo user
+      if (isDevelopmentMode()) {
         setUser({
           id: 123456789,
           first_name: "Demo",
@@ -127,182 +134,263 @@ export const useTelegram = () => {
           username: "demo_user",
         });
       }
-    } else {
-      console.log("Telegram WebApp not detected, using web mode");
-      setPlatform("web");
-      setIsReady(true);
 
-      // Web mode uchun demo user
-      setUser({
-        id: 123456789,
-        first_name: "Demo",
-        last_name: "User",
-        username: "demo_user",
-      });
+      // URL parametrlarini web rejimida ham tekshirish
+      try {
+        checkWebUrlParams();
+      } catch (error) {
+        console.error("Web URL params tekshirishda xatolik:", error);
+      }
+    }
 
-      // URL parametrlarini web mode da ham tekshirish
+    function handleStartParam(param) {
+      if (!param) return;
+
+      let tradeCode = null;
+
+      if (param.startsWith("savdo_")) {
+        tradeCode = param.replace("savdo_", "");
+      } else if (param.startsWith("trade_")) {
+        tradeCode = param.replace("trade_", "");
+      } else {
+        tradeCode = param;
+      }
+
+      if (tradeCode) {
+        console.log("Trade code ajratildi:", tradeCode);
+        navigateToTrade(tradeCode);
+      }
+    }
+
+    function checkWebUrlParams() {
       const urlParams = new URLSearchParams(window.location.search);
       const trade =
         urlParams.get("trade") ||
         urlParams.get("savdo") ||
         urlParams.get("code");
+
       if (trade) {
-        console.log("Trade code from URL in web mode:", trade);
-        if (!window.location.pathname.includes("/join/")) {
-          window.history.replaceState(null, "", `/join/${trade}`);
+        console.log("Web rejimida trade code topildi:", trade);
+        navigateToTrade(trade);
+      }
+    }
+
+    function navigateToTrade(code) {
+      const currentPath = window.location.pathname;
+      if (!currentPath.includes("/join/") && !currentPath.includes("/trade/")) {
+        try {
+          window.history.replaceState(null, "", `/join/${code}`);
+          console.log("Savdo sahifasiga yo'naltirildi:", code);
+        } catch (navError) {
+          console.error("Navigation xatolik:", navError);
         }
       }
     }
+
+    function isDevelopmentMode() {
+      return (
+        window.location.hostname === "localhost" ||
+        window.location.hostname === "127.0.0.1" ||
+        window.location.hostname.includes("192.168") ||
+        window.location.protocol === "file:"
+      );
+    }
   }, []);
 
+  // Xavfsiz metodlar
   const sendData = (data) => {
-    if (tg) {
-      tg.sendData(JSON.stringify(data));
-    } else {
-      console.log("Would send data:", data);
+    try {
+      if (tg && typeof tg.sendData === "function") {
+        tg.sendData(JSON.stringify(data));
+      } else {
+        console.log("sendData chaqirilishi kerak edi:", data);
+      }
+    } catch (error) {
+      console.error("sendData xatolik:", error);
     }
   };
 
   const closeTg = () => {
-    if (tg) {
-      tg.close();
-    } else {
-      window.close();
+    try {
+      if (tg && typeof tg.close === "function") {
+        tg.close();
+      } else {
+        window.close();
+      }
+    } catch (error) {
+      console.error("closeTg xatolik:", error);
     }
   };
 
   const showAlert = (message) => {
-    if (tg) {
-      tg.showAlert(message);
-    } else {
+    try {
+      if (tg && typeof tg.showAlert === "function") {
+        tg.showAlert(message);
+      } else {
+        alert(message);
+      }
+    } catch (error) {
+      console.error("showAlert xatolik:", error);
       alert(message);
     }
   };
 
   const showConfirm = (message, callback) => {
-    if (tg) {
-      tg.showConfirm(message, callback);
-    } else {
+    try {
+      if (tg && typeof tg.showConfirm === "function") {
+        tg.showConfirm(message, callback);
+      } else {
+        const result = confirm(message);
+        if (typeof callback === "function") {
+          callback(result);
+        }
+      }
+    } catch (error) {
+      console.error("showConfirm xatolik:", error);
       const result = confirm(message);
-      callback(result);
+      if (typeof callback === "function") {
+        callback(result);
+      }
     }
   };
 
   const hapticFeedback = (type = "impact", style = "medium") => {
-    if (tg && tg.HapticFeedback) {
-      try {
-        if (type === "impact") {
+    try {
+      if (tg && tg.HapticFeedback) {
+        if (
+          type === "impact" &&
+          typeof tg.HapticFeedback.impactOccurred === "function"
+        ) {
           tg.HapticFeedback.impactOccurred(style);
-        } else if (type === "notification") {
+        } else if (
+          type === "notification" &&
+          typeof tg.HapticFeedback.notificationOccurred === "function"
+        ) {
           tg.HapticFeedback.notificationOccurred(style);
-        } else if (type === "selection") {
+        } else if (
+          type === "selection" &&
+          typeof tg.HapticFeedback.selectionChanged === "function"
+        ) {
           tg.HapticFeedback.selectionChanged();
         }
-      } catch (error) {
-        console.log("Haptic feedback not available:", error);
       }
+    } catch (error) {
+      console.error("Haptic feedback xatolik:", error);
     }
   };
 
   const mainButton = {
     show: (text, callback) => {
-      if (tg && tg.MainButton) {
-        try {
+      try {
+        if (tg && tg.MainButton) {
           tg.MainButton.text = text;
-          tg.MainButton.show();
-          if (callback) {
+          if (typeof tg.MainButton.show === "function") {
+            tg.MainButton.show();
+          }
+          if (callback && typeof tg.MainButton.onClick === "function") {
             tg.MainButton.onClick(callback);
           }
-        } catch (error) {
-          console.log("MainButton not available:", error);
         }
+      } catch (error) {
+        console.error("MainButton show xatolik:", error);
       }
     },
     hide: () => {
-      if (tg && tg.MainButton) {
-        try {
+      try {
+        if (tg && tg.MainButton && typeof tg.MainButton.hide === "function") {
           tg.MainButton.hide();
-        } catch (error) {
-          console.log("MainButton not available:", error);
         }
+      } catch (error) {
+        console.error("MainButton hide xatolik:", error);
       }
     },
     setText: (text) => {
-      if (tg && tg.MainButton) {
-        try {
+      try {
+        if (tg && tg.MainButton) {
           tg.MainButton.text = text;
-        } catch (error) {
-          console.log("MainButton not available:", error);
         }
+      } catch (error) {
+        console.error("MainButton setText xatolik:", error);
       }
     },
     setColor: (color) => {
-      if (tg && tg.MainButton) {
-        try {
+      try {
+        if (tg && tg.MainButton) {
           tg.MainButton.color = color;
-        } catch (error) {
-          console.log("MainButton not available:", error);
         }
+      } catch (error) {
+        console.error("MainButton setColor xatolik:", error);
       }
     },
     setTextColor: (color) => {
-      if (tg && tg.MainButton) {
-        try {
+      try {
+        if (tg && tg.MainButton) {
           tg.MainButton.textColor = color;
-        } catch (error) {
-          console.log("MainButton not available:", error);
         }
+      } catch (error) {
+        console.error("MainButton setTextColor xatolik:", error);
       }
     },
     enable: () => {
-      if (tg && tg.MainButton) {
-        try {
+      try {
+        if (tg && tg.MainButton && typeof tg.MainButton.enable === "function") {
           tg.MainButton.enable();
-        } catch (error) {
-          console.log("MainButton not available:", error);
         }
+      } catch (error) {
+        console.error("MainButton enable xatolik:", error);
       }
     },
     disable: () => {
-      if (tg && tg.MainButton) {
-        try {
+      try {
+        if (
+          tg &&
+          tg.MainButton &&
+          typeof tg.MainButton.disable === "function"
+        ) {
           tg.MainButton.disable();
-        } catch (error) {
-          console.log("MainButton not available:", error);
         }
+      } catch (error) {
+        console.error("MainButton disable xatolik:", error);
       }
     },
   };
 
   const backButton = {
     show: (callback) => {
-      if (tg && tg.BackButton) {
-        try {
-          tg.BackButton.show();
-          if (callback) {
+      try {
+        if (tg && tg.BackButton) {
+          if (typeof tg.BackButton.show === "function") {
+            tg.BackButton.show();
+          }
+          if (callback && typeof tg.BackButton.onClick === "function") {
             tg.BackButton.onClick(callback);
           }
-        } catch (error) {
-          console.log("BackButton not available:", error);
         }
+      } catch (error) {
+        console.error("BackButton show xatolik:", error);
       }
     },
     hide: () => {
-      if (tg && tg.BackButton) {
-        try {
+      try {
+        if (tg && tg.BackButton && typeof tg.BackButton.hide === "function") {
           tg.BackButton.hide();
-        } catch (error) {
-          console.log("BackButton not available:", error);
         }
+      } catch (error) {
+        console.error("BackButton hide xatolik:", error);
       }
     },
   };
 
-  // Theme dan ranglarni olish
+  // Theme parametrlarini xavfsiz olish
   const getThemeParams = () => {
-    if (tg && tg.themeParams) {
-      return tg.themeParams;
+    try {
+      if (tg && tg.themeParams) {
+        return tg.themeParams;
+      }
+    } catch (error) {
+      console.error("Theme params olishda xatolik:", error);
     }
+
     return {
       bg_color: "#ffffff",
       text_color: "#000000",
@@ -313,49 +401,67 @@ export const useTelegram = () => {
     };
   };
 
-  // URL parametrlarini olish utility function
+  // URL parametrlarini olish
   const getUrlParams = () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const pathParts = window.location.pathname.split("/").filter(Boolean);
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const pathParts = window.location.pathname.split("/").filter(Boolean);
 
-    return {
-      // Query parametrlar
-      trade: urlParams.get("trade"),
-      savdo: urlParams.get("savdo"),
-      code: urlParams.get("code"),
-      startapp: urlParams.get("startapp"),
+      return {
+        // Query parametrlar
+        trade: urlParams.get("trade"),
+        savdo: urlParams.get("savdo"),
+        code: urlParams.get("code"),
+        startapp: urlParams.get("startapp"),
 
-      // Path parametrlar
-      pathCode: pathParts.length >= 2 ? pathParts[1] : null,
+        // Path parametrlar
+        pathCode: pathParts.length >= 2 ? pathParts[1] : null,
 
-      // Telegram parametrlar
-      startParam: startParam,
+        // Telegram parametrlar
+        startParam: startParam,
 
-      // Birinchi topilgan kod
-      firstCode:
-        urlParams.get("trade") ||
-        urlParams.get("savdo") ||
-        urlParams.get("code") ||
-        (pathParts.length >= 2 ? pathParts[1] : null) ||
-        (startParam && startParam.includes("_")
-          ? startParam.split("_")[1]
-          : startParam),
-    };
+        // Birinchi topilgan kod
+        firstCode:
+          urlParams.get("trade") ||
+          urlParams.get("savdo") ||
+          urlParams.get("code") ||
+          (pathParts.length >= 2 ? pathParts[1] : null) ||
+          (startParam && startParam.includes("_")
+            ? startParam.split("_")[1]
+            : startParam),
+      };
+    } catch (error) {
+      console.error("URL params olishda xatolik:", error);
+      return {
+        trade: null,
+        savdo: null,
+        code: null,
+        startapp: null,
+        pathCode: null,
+        startParam: null,
+        firstCode: null,
+      };
+    }
   };
 
   // Platform detection
   const isTelegramWebApp = () => platform === "telegram";
   const isWebBrowser = () => platform === "web";
 
-  // Viewport ma'lumotlari
+  // Viewport ma'lumotlarini xavfsiz olish
   const getViewport = () => {
-    if (tg) {
-      return {
-        height: tg.viewportHeight || window.innerHeight,
-        stableHeight: tg.viewportStableHeight || window.innerHeight,
-        isExpanded: tg.isExpanded || false,
-      };
+    try {
+      if (tg) {
+        return {
+          height: tg.viewportHeight || window.innerHeight,
+          stableHeight: tg.viewportStableHeight || window.innerHeight,
+          isExpanded: tg.isExpanded || false,
+        };
+      }
+    } catch (error) {
+      console.error("Viewport ma'lumotlari olishda xatolik:", error);
     }
+
     return {
       height: window.innerHeight,
       stableHeight: window.innerHeight,

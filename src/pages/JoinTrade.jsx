@@ -1,4 +1,4 @@
-// src/pages/JoinTrade.jsx - URL parametrlarini to'liq qo'llab-quvvatlash
+// src/pages/JoinTrade.jsx - Faqat Telegram WebApp uchun optimallashtirilgan
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useApi } from "../context/ApiContext";
@@ -22,8 +22,14 @@ export const JoinTrade = () => {
   const { secretCode: urlSecretCode } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { joinTrade, isJoiningTrade, availableBalance, getTradeByCode } =
-    useApi();
+  const {
+    joinTrade,
+    isJoiningTrade,
+    availableBalance,
+    getTradeByCode,
+    isDevelopmentMode,
+    isTelegramWebApp,
+  } = useApi();
 
   const [tradeInfo, setTradeInfo] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -31,8 +37,22 @@ export const JoinTrade = () => {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [actualSecretCode, setActualSecretCode] = useState(null);
 
+  // Development mode da brauzer kirish ta'qiqi
+  useEffect(() => {
+    if (!isDevelopmentMode && !isTelegramWebApp) {
+      console.error("Production mode: Faqat Telegram WebApp");
+      setError("Bu ilova faqat Telegram WebApp orqali ishlaydi");
+      setLoading(false);
+      return;
+    }
+  }, [isDevelopmentMode, isTelegramWebApp]);
+
   // URL parametrlardan secret code ni olish
   useEffect(() => {
+    if (!isDevelopmentMode && !isTelegramWebApp) {
+      return; // Telegram WebApp emas bo'lsa, davom etmaslik
+    }
+
     let codeToUse = null;
 
     // 1. URL path dan
@@ -40,31 +60,26 @@ export const JoinTrade = () => {
       codeToUse = urlSecretCode;
       console.log("Secret code from URL path:", codeToUse);
     }
-
-    // 2. Query parametrdan (?trade=CODE)
+    // 2. Query parametrdan
     else if (searchParams.get("trade")) {
       codeToUse = searchParams.get("trade");
       console.log("Secret code from query param 'trade':", codeToUse);
-    }
-
-    // 3. Query parametrdan (?code=CODE)
-    else if (searchParams.get("code")) {
+    } else if (searchParams.get("code")) {
       codeToUse = searchParams.get("code");
       console.log("Secret code from query param 'code':", codeToUse);
-    }
-
-    // 4. Query parametrdan (?savdo=CODE)
-    else if (searchParams.get("savdo")) {
+    } else if (searchParams.get("savdo")) {
       codeToUse = searchParams.get("savdo");
       console.log("Secret code from query param 'savdo':", codeToUse);
     }
 
-    // 5. Telegram WebApp start_param dan
-    if (window.Telegram?.WebApp?.initDataUnsafe?.start_param) {
+    // 3. Telegram WebApp start_param dan (faqat production da)
+    if (
+      !isDevelopmentMode &&
+      window.Telegram?.WebApp?.initDataUnsafe?.start_param
+    ) {
       const startParam = window.Telegram.WebApp.initDataUnsafe.start_param;
       console.log("Telegram start_param:", startParam);
 
-      // start_param dan secret code ajratib olish
       if (startParam.startsWith("savdo_")) {
         codeToUse = startParam.replace("savdo_", "");
         console.log("Secret code from Telegram start_param:", codeToUse);
@@ -77,20 +92,6 @@ export const JoinTrade = () => {
       }
     }
 
-    // 6. Telegram WebApp startapp parametridan (yangi usul)
-    if (!codeToUse && window.Telegram?.WebApp?.initData) {
-      try {
-        const initData = new URLSearchParams(window.Telegram.WebApp.initData);
-        const startapp = initData.get("start_param");
-        if (startapp && startapp.includes("savdo_")) {
-          codeToUse = startapp.replace("savdo_", "");
-          console.log("Secret code from Telegram initData:", codeToUse);
-        }
-      } catch (error) {
-        console.error("Error parsing Telegram initData:", error);
-      }
-    }
-
     if (codeToUse) {
       setActualSecretCode(codeToUse);
       loadTradeInfo(codeToUse);
@@ -100,7 +101,7 @@ export const JoinTrade = () => {
       );
       setLoading(false);
     }
-  }, [urlSecretCode, searchParams]);
+  }, [urlSecretCode, searchParams, isDevelopmentMode, isTelegramWebApp]);
 
   const loadTradeInfo = async (secretCode) => {
     try {
@@ -181,8 +182,7 @@ export const JoinTrade = () => {
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text).then(() => {
-      // Toast notification
-      console.log("Copied to clipboard:", text);
+      console.log("Clipboard ga nusxalandi:", text);
     });
   };
 
@@ -199,6 +199,32 @@ export const JoinTrade = () => {
     }
   };
 
+  // Production da Telegram WebApp emas bo'lsa
+  if (!isDevelopmentMode && !isTelegramWebApp) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="text-center max-w-md">
+          <div className="text-6xl mb-4">🚫</div>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">
+            Noto'g'ri kirish
+          </h2>
+          <p className="text-gray-600 mb-4">
+            Bu ilova faqat Telegram WebApp orqali ishlaydi
+          </p>
+          <a
+            href="https://t.me/Trade_Lock_bot/app"
+            className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Telegram WebApp orqali ochish
+          </a>
+          <p className="text-xs text-gray-500 mt-4">
+            Brauzer orqali kirish mumkin emas
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // Loading state
   if (loading) {
     return (
@@ -210,6 +236,9 @@ export const JoinTrade = () => {
             <p className="text-sm text-gray-500 mt-2">
               Kod: {actualSecretCode}
             </p>
+          )}
+          {isDevelopmentMode && (
+            <p className="text-xs text-orange-600 mt-2">Development Mode</p>
           )}
         </div>
       </div>
@@ -227,32 +256,24 @@ export const JoinTrade = () => {
           <h2 className="text-xl font-bold text-gray-800 mb-2">Xatolik!</h2>
           <p className="text-gray-600 mb-6">{error || "Savdo topilmadi"}</p>
 
-          {/* Debug info */}
-          <div className="bg-gray-50 rounded-lg p-4 mb-6 text-left">
-            <h3 className="font-semibold text-gray-800 mb-2">
-              Debug ma'lumot:
-            </h3>
-            <div className="text-sm text-gray-600 space-y-1">
-              <p>URL Secret Code: {urlSecretCode || "Yo'q"}</p>
-              <p>Query 'trade': {searchParams.get("trade") || "Yo'q"}</p>
-              <p>Query 'code': {searchParams.get("code") || "Yo'q"}</p>
-              <p>Query 'savdo': {searchParams.get("savdo") || "Yo'q"}</p>
-              <p>Query 'startapp': {searchParams.get("startapp") || "Yo'q"}</p>
-              <p>
-                Telegram start_param:{" "}
-                {window.Telegram?.WebApp?.initDataUnsafe?.start_param || "Yo'q"}
-              </p>
-              <p>
-                Telegram initData:{" "}
-                {window.Telegram?.WebApp?.initData ? "Mavjud" : "Yo'q"}
-              </p>
-              <p>
-                Is Telegram WebApp: {window.Telegram?.WebApp ? "Ha" : "Yo'q"}
-              </p>
-              <p>Ishlatilgan kod: {actualSecretCode || "Aniqlanmadi"}</p>
-              <p>Current URL: {window.location.href}</p>
+          {/* Development mode da debug info */}
+          {isDevelopmentMode && (
+            <div className="bg-gray-50 rounded-lg p-4 mb-6 text-left">
+              <h3 className="font-semibold text-gray-800 mb-2">
+                Debug ma'lumot:
+              </h3>
+              <div className="text-sm text-gray-600 space-y-1">
+                <p>Development Mode: {isDevelopmentMode ? "Ha" : "Yo'q"}</p>
+                <p>Telegram WebApp: {isTelegramWebApp ? "Ha" : "Yo'q"}</p>
+                <p>URL Secret Code: {urlSecretCode || "Yo'q"}</p>
+                <p>Query 'trade': {searchParams.get("trade") || "Yo'q"}</p>
+                <p>Query 'code': {searchParams.get("code") || "Yo'q"}</p>
+                <p>Query 'savdo': {searchParams.get("savdo") || "Yo'q"}</p>
+                <p>Ishlatilgan kod: {actualSecretCode || "Aniqlanmadi"}</p>
+                <p>Current URL: {window.location.href}</p>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="space-y-3">
             <button
@@ -268,6 +289,16 @@ export const JoinTrade = () => {
             >
               Qayta yuklash
             </button>
+
+            {/* Production da Telegram havolasi */}
+            {!isDevelopmentMode && (
+              <a
+                href="https://t.me/Trade_Lock_bot/app"
+                className="block w-full bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-700 transition-colors"
+              >
+                Telegram WebApp orqali ochish
+              </a>
+            )}
           </div>
         </div>
       </div>
@@ -287,41 +318,47 @@ export const JoinTrade = () => {
           <p className="text-blue-100 text-sm">
             Savdo ma'lumotlarini ko'ring va qo'shiling
           </p>
-          {/* URL info */}
           <div className="mt-2 text-xs text-blue-200">
             Kod: {actualSecretCode}
           </div>
+          {isDevelopmentMode && (
+            <div className="mt-1 text-xs text-yellow-200">
+              🔧 Development Mode
+            </div>
+          )}
         </div>
       </div>
 
       <div className="max-w-4xl mx-auto p-4 space-y-6">
-        {/* Share section */}
-        <div className="bg-white rounded-xl p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-semibold text-gray-800">
-                Bu havola ishlamayaptimi?
-              </h3>
-              <p className="text-sm text-gray-600">Boshqalar bilan ulashing</p>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => copyToClipboard(window.location.href)}
-                className="flex items-center gap-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm"
-              >
-                <Copy size={16} />
-                Nusxalash
-              </button>
-              <button
-                onClick={shareUrl}
-                className="flex items-center gap-1 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 text-sm"
-              >
-                <Share2 size={16} />
-                Ulashish
-              </button>
+        {/* Share section - faqat development mode da */}
+        {isDevelopmentMode && (
+          <div className="bg-white rounded-xl p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-gray-800">
+                  Development mode
+                </h3>
+                <p className="text-sm text-gray-600">Demo savdo havolasi</p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => copyToClipboard(window.location.href)}
+                  className="flex items-center gap-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm"
+                >
+                  <Copy size={16} />
+                  Nusxalash
+                </button>
+                <button
+                  onClick={shareUrl}
+                  className="flex items-center gap-1 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 text-sm"
+                >
+                  <Share2 size={16} />
+                  Ulashish
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Trade Info Card */}
         <div className="bg-white rounded-2xl shadow-lg p-6">
@@ -366,7 +403,7 @@ export const JoinTrade = () => {
                 <div>
                   <p className="text-sm text-gray-600">Yaratuvchi</p>
                   <p className="font-semibold text-gray-800">
-                    {tradeInfo.creator_name || "Noma'lum"}
+                    {tradeInfo.creator_name || "Demo User"}
                   </p>
                 </div>
               </div>

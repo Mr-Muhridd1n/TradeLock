@@ -1,4 +1,4 @@
-// src/context/ApiContext.jsx - URL parametrlarini qo'llab-quvvatlash bilan
+// src/context/ApiContext.jsx - Telegram WebApp uchun mukammal optimallashtirilgan
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../services/api";
@@ -23,27 +23,54 @@ export const ApiProvider = ({ children }) => {
     getUrlParams,
     isTelegramWebApp,
   } = useTelegram();
+
   const [isAuthenticated, setIsAuthenticated] = useState(api.isAuthenticated());
   const [authLoading, setAuthLoading] = useState(true);
   const [apiOnline, setApiOnline] = useState(true);
+  const [isDevelopmentMode, setIsDevelopmentMode] = useState(false);
+
+  // Telegram WebApp ekanligini tekshirish
+  const isValidTelegramWebApp = () => {
+    return !!(
+      window.Telegram?.WebApp &&
+      window.Telegram.WebApp.initData &&
+      window.location.hostname !== "localhost"
+    );
+  };
+
+  // Development mode ni aniqlash
+  useEffect(() => {
+    const isDev =
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1" ||
+      window.location.hostname.includes("192.168") ||
+      window.location.protocol === "file:" ||
+      !window.Telegram?.WebApp;
+
+    setIsDevelopmentMode(isDev);
+    console.log("Environment:", isDev ? "Development" : "Production");
+    console.log("Telegram WebApp:", !!window.Telegram?.WebApp);
+  }, []);
 
   // API holatini tekshirish
   useEffect(() => {
     const checkApiStatus = async () => {
-      const isOnline = await api.checkApiStatus();
-      setApiOnline(isOnline);
-      if (!isOnline) {
-        showToast.error(
-          "Server bilan aloqa yo'q. Iltimos, keyinroq urinib ko'ring."
-        );
+      try {
+        const isOnline = await api.checkApiStatus();
+        setApiOnline(isOnline);
+        if (!isOnline && !isDevelopmentMode) {
+          showToast.error("Server bilan aloqa yo'q");
+        }
+      } catch (error) {
+        console.error("API status check failed:", error);
+        setApiOnline(false);
       }
     };
 
     checkApiStatus();
-    // Har 30 soniyada tekshirish
     const interval = setInterval(checkApiStatus, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isDevelopmentMode]);
 
   // Authentication
   const { mutate: authenticate, isPending: authPending } = useMutation({
@@ -53,14 +80,18 @@ export const ApiProvider = ({ children }) => {
       if (data && data.success) {
         setIsAuthenticated(true);
         queryClient.invalidateQueries();
-        showToast.success("Muvaffaqiyatli tizimga kirdingiz");
+        if (!isDevelopmentMode) {
+          showToast.success("Muvaffaqiyatli tizimga kirdingiz");
+        }
       } else {
         throw new Error(data?.error || "Noma'lum xatolik");
       }
     },
     onError: (error) => {
       console.error("Auth error:", error);
-      showToast.error(error.message || "Tizimga kirishda xatolik");
+      if (!isDevelopmentMode) {
+        showToast.error(error.message || "Tizimga kirishda xatolik");
+      }
       setIsAuthenticated(false);
     },
     onSettled: () => {
@@ -70,24 +101,12 @@ export const ApiProvider = ({ children }) => {
 
   // Auto authenticate
   useEffect(() => {
-    if (isReady && apiOnline) {
-      // URL parametrlarini olish
+    if (isReady) {
       const urlParams = getUrlParams();
       console.log("URL params for auth:", urlParams);
 
-      if (telegramUser && !isAuthenticated) {
-        // Real Telegram data bilan auth
-        const authData = {
-          user: telegramUser,
-          hash: window.Telegram?.WebApp?.initData
-            ? new URLSearchParams(window.Telegram.WebApp.initData).get("hash")
-            : "demo_hash",
-          url_params: urlParams, // URL parametrlarini qo'shish
-        };
-        console.log("Authenticating with Telegram data:", authData);
-        authenticate(authData);
-      } else if (!telegramUser && !isAuthenticated) {
-        // Demo mode
+      // Development mode da demo foydalanuvchi
+      if (isDevelopmentMode) {
         const demoData = {
           user: {
             id: 123456789,
@@ -96,10 +115,31 @@ export const ApiProvider = ({ children }) => {
             username: "demo_user",
           },
           hash: "demo_hash",
-          url_params: urlParams, // URL parametrlarini demo mode da ham qo'shish
+          url_params: urlParams,
         };
-        console.log("Authenticating with demo data:", demoData);
+        console.log("Development mode: Authenticating with demo data");
         authenticate(demoData);
+        return;
+      }
+
+      // Production mode: faqat Telegram WebApp
+      if (!isValidTelegramWebApp()) {
+        console.error("Not a valid Telegram WebApp environment");
+        setAuthLoading(false);
+        return;
+      }
+
+      // Real Telegram data bilan auth
+      if (telegramUser && !isAuthenticated && apiOnline) {
+        const authData = {
+          user: telegramUser,
+          hash:
+            new URLSearchParams(window.Telegram.WebApp.initData).get("hash") ||
+            "no_hash",
+          url_params: urlParams,
+        };
+        console.log("Authenticating with Telegram data:", authData);
+        authenticate(authData);
       } else {
         setAuthLoading(false);
       }
@@ -110,26 +150,37 @@ export const ApiProvider = ({ children }) => {
     isAuthenticated,
     authenticate,
     apiOnline,
+    isDevelopmentMode,
     getUrlParams,
   ]);
 
-  // Queries with error handling
+  // Data fetching - faqat auth va online bo'lganda
+  const shouldFetchData = isAuthenticated && (apiOnline || isDevelopmentMode);
+
   const {
     data: userData,
     isLoading: userLoading,
     error: userError,
   } = useQuery({
     queryKey: ["user"],
-    queryFn: () => api.getUser(),
-    enabled: isAuthenticated && apiOnline,
-    retry: (failureCount, error) => {
-      // 401 da retry qilmaslik
-      if (error?.message?.includes("401")) return false;
-      return failureCount < 2;
+    queryFn: () => {
+      if (isDevelopmentMode && !apiOnline) {
+        return {
+          id: 1,
+          telegram_id: 123456789,
+          first_name: "Demo",
+          last_name: "User",
+          username: "demo_user",
+          is_active: true,
+        };
+      }
+      return api.getUser();
     },
+    enabled: shouldFetchData,
+    retry: false,
     onError: (error) => {
       console.error("User data error:", error);
-      if (!error.message.includes("401")) {
+      if (!error.message.includes("401") && !isDevelopmentMode) {
         showToast.error("Foydalanuvchi ma'lumotlarini yuklashda xatolik");
       }
     },
@@ -137,38 +188,79 @@ export const ApiProvider = ({ children }) => {
 
   const { data: balanceData, isLoading: balanceLoading } = useQuery({
     queryKey: ["balance"],
-    queryFn: () => api.getUserBalance(),
-    enabled: isAuthenticated && apiOnline,
-    refetchInterval: 30000,
-    retry: 2,
-    onError: (error) => {
-      console.error("Balance error:", error);
+    queryFn: () => {
+      if (isDevelopmentMode && !apiOnline) {
+        return {
+          balance: 100000000,
+          frozen_balance: 5000000,
+          available_balance: 95000000,
+        };
+      }
+      return api.getUserBalance();
     },
+    enabled: shouldFetchData,
+    refetchInterval: isDevelopmentMode ? false : 30000,
+    retry: false,
   });
 
   const { data: tradesData, isLoading: tradesLoading } = useQuery({
     queryKey: ["trades"],
-    queryFn: () => api.getTrades(),
-    enabled: isAuthenticated && apiOnline,
-    retry: 2,
-    onError: (error) => {
-      console.error("Trades error:", error);
+    queryFn: () => {
+      if (isDevelopmentMode && !apiOnline) {
+        return [
+          {
+            id: 1,
+            secret_code: "TL123DEMO",
+            trade_name: "Demo Savdo",
+            amount: 100000,
+            commission_amount: 2000,
+            commission_type: "creator",
+            creator_role: "seller",
+            status: "active",
+            partner_id: null,
+            created_at: new Date().toISOString(),
+          },
+        ];
+      }
+      return api.getTrades();
     },
+    enabled: shouldFetchData,
+    retry: false,
   });
 
   const { data: transactionsData, isLoading: transactionsLoading } = useQuery({
     queryKey: ["transactions"],
-    queryFn: () => api.getTransactions(50, 0),
-    enabled: isAuthenticated && apiOnline,
-    retry: 2,
-    onError: (error) => {
-      console.error("Transactions error:", error);
+    queryFn: () => {
+      if (isDevelopmentMode && !apiOnline) {
+        return [
+          {
+            id: 1,
+            type: "deposit",
+            amount: 50000,
+            created_at: new Date().toISOString(),
+            description: "Demo to'lov",
+          },
+        ];
+      }
+      return api.getTransactions(50, 0);
     },
+    enabled: shouldFetchData,
+    retry: false,
   });
 
-  // Trade mutations with proper error handling
+  // Trade mutations
   const createTradeMutation = useMutation({
-    mutationFn: (tradeData) => api.createTrade(tradeData),
+    mutationFn: (tradeData) => {
+      if (isDevelopmentMode && !apiOnline) {
+        return Promise.resolve({
+          success: true,
+          trade_id: Math.floor(Math.random() * 1000),
+          secret_code:
+            "TL" + Math.random().toString(36).substring(2, 8).toUpperCase(),
+        });
+      }
+      return api.createTrade(tradeData);
+    },
     onSuccess: (data) => {
       queryClient.invalidateQueries(["trades"]);
       queryClient.invalidateQueries(["balance"]);
@@ -182,7 +274,15 @@ export const ApiProvider = ({ children }) => {
   });
 
   const joinTradeMutation = useMutation({
-    mutationFn: (secretCode) => api.joinTrade(secretCode),
+    mutationFn: (secretCode) => {
+      if (isDevelopmentMode && !apiOnline) {
+        return Promise.resolve({
+          success: true,
+          trade: { id: 1, secret_code: secretCode },
+        });
+      }
+      return api.joinTrade(secretCode);
+    },
     onSuccess: (data) => {
       queryClient.invalidateQueries(["trades"]);
       queryClient.invalidateQueries(["balance"]);
@@ -196,7 +296,12 @@ export const ApiProvider = ({ children }) => {
   });
 
   const completeTradeMutation = useMutation({
-    mutationFn: (tradeId) => api.completeTrade(tradeId),
+    mutationFn: (tradeId) => {
+      if (isDevelopmentMode && !apiOnline) {
+        return Promise.resolve({ success: true });
+      }
+      return api.completeTrade(tradeId);
+    },
     onSuccess: (data) => {
       queryClient.invalidateQueries(["trades"]);
       queryClient.invalidateQueries(["balance"]);
@@ -211,7 +316,12 @@ export const ApiProvider = ({ children }) => {
   });
 
   const cancelTradeMutation = useMutation({
-    mutationFn: (tradeId) => api.cancelTrade(tradeId),
+    mutationFn: (tradeId) => {
+      if (isDevelopmentMode && !apiOnline) {
+        return Promise.resolve({ success: true });
+      }
+      return api.cancelTrade(tradeId);
+    },
     onSuccess: (data) => {
       queryClient.invalidateQueries(["trades"]);
       queryClient.invalidateQueries(["balance"]);
@@ -225,8 +335,12 @@ export const ApiProvider = ({ children }) => {
   });
 
   const depositMutation = useMutation({
-    mutationFn: ({ amount, paymentMethodId, referenceId }) =>
-      api.deposit(amount, paymentMethodId, referenceId),
+    mutationFn: ({ amount, paymentMethodId, referenceId }) => {
+      if (isDevelopmentMode && !apiOnline) {
+        return Promise.resolve({ success: true });
+      }
+      return api.deposit(amount, paymentMethodId, referenceId);
+    },
     onSuccess: (data) => {
       queryClient.invalidateQueries(["balance"]);
       queryClient.invalidateQueries(["transactions"]);
@@ -239,7 +353,7 @@ export const ApiProvider = ({ children }) => {
     },
   });
 
-  // Trade functions with Promise wrapping
+  // Promise wrapper functions
   const createTrade = (tradeData) => {
     return new Promise((resolve, reject) => {
       createTradeMutation.mutate(tradeData, {
@@ -288,7 +402,20 @@ export const ApiProvider = ({ children }) => {
   // Trade code bo'yicha savdo olish
   const getTradeByCode = async (secretCode) => {
     try {
-      console.log("Getting trade by code:", secretCode);
+      if (isDevelopmentMode && !apiOnline) {
+        return {
+          id: 1,
+          secret_code: secretCode,
+          trade_name: "Demo Savdo",
+          amount: 100000,
+          commission_amount: 2000,
+          commission_type: "creator",
+          creator_role: "seller",
+          status: "active",
+          partner_id: null,
+          created_at: new Date().toISOString(),
+        };
+      }
       return await api.getTradeBySecretCode(secretCode);
     } catch (error) {
       console.error("Error getting trade by code:", error);
@@ -301,6 +428,7 @@ export const ApiProvider = ({ children }) => {
     isAuthenticated,
     authLoading: authLoading || authPending,
     apiOnline,
+    isDevelopmentMode,
     user: userData,
     balance: balanceData?.balance || 0,
     frozenBalance: balanceData?.frozen_balance || 0,
@@ -320,8 +448,7 @@ export const ApiProvider = ({ children }) => {
     deposit,
     getTradeByCode,
 
-    // Direct mutations (keeping for compatibility)
-    createTradeMutation: createTradeMutation.mutate,
+    // Mutation states
     isCreatingTrade: createTradeMutation.isPending,
     isJoiningTrade: joinTradeMutation.isPending,
     isCompletingTrade: completeTradeMutation.isPending,
@@ -347,8 +474,15 @@ export const ApiProvider = ({ children }) => {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Tizimga kirish...</p>
-          {isTelegramWebApp() && (
+          <p className="text-gray-600">
+            {isDevelopmentMode
+              ? "Demo rejimi yuklanmoqda..."
+              : "Tizimga kirish..."}
+          </p>
+          {isDevelopmentMode && (
+            <p className="text-sm text-orange-600 mt-2">Development Mode</p>
+          )}
+          {!isDevelopmentMode && isTelegramWebApp() && (
             <p className="text-sm text-blue-600 mt-2">Telegram WebApp</p>
           )}
         </div>
@@ -356,8 +490,34 @@ export const ApiProvider = ({ children }) => {
     );
   }
 
-  // Offline screen
-  if (!apiOnline) {
+  // Production da Telegram WebApp emas bo'lsa
+  if (!isDevelopmentMode && !isValidTelegramWebApp()) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="text-center max-w-md">
+          <div className="text-6xl mb-4">🚫</div>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">
+            Noto'g'ri kirish
+          </h2>
+          <p className="text-gray-600 mb-4">
+            Bu ilova faqat Telegram WebApp orqali ishlaydi
+          </p>
+          <a
+            href="https://t.me/Trade_Lock_bot/app"
+            className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Telegram WebApp orqali ochish
+          </a>
+          <p className="text-xs text-gray-500 mt-4">
+            Brauzer orqali kirish mumkin emas
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Offline screen (production da)
+  if (!isDevelopmentMode && !apiOnline) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
